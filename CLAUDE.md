@@ -71,8 +71,11 @@ Payments via Google Play Billing. Monetise only after PMF.
 
 Vertical slice BUILDS and is TESTED on this machine.
 - Toolchain: JDK 17 + Gradle 8.7 (wrapper) + Android SDK 34. See docs/BUILD_AND_TEST.md.
-- `./gradlew testDebugUnitTest` -> 15 tests, 0 failures.
+- `./gradlew testDebugUnitTest` -> 15 unit tests, 0 failures.
+- `./gradlew connectedDebugAndroidTest` -> 2 Compose UI tests, 0 failures (emulator).
 - `./gradlew assembleDebug` -> app/build/outputs/apk/debug/app-debug.apk (16 MB).
+- Verified live on an AVD (root_pixel, API 34 arm64): Home, reflection chat loop,
+  minimalist toggle, time-adaptive night theme all working.
 - Home + AI reflection session working (offline demo mode until a Groq key is set).
 - Shield / Moments / Stories / You are placeholders.
 Next: push to GitHub (docs/GITHUB.md), device-test, then build the Shield interrupt

@@ -14,10 +14,13 @@
   ReflectionViewModel state machine.
 - Runbooks: BUILD_AND_TEST, GITHUB, PLAY_STORE. README.
 
-## Blocked on
-- Toolchain install (JDK17 + gradle + android-commandlinetools via brew) - needs
-  the user to run the 3 brew commands; then the SDK packages, wrapper, and
-  `./gradlew testDebugUnitTest` run can proceed and verify the slice.
+- Toolchain + emulator set up (JDK17, Gradle 8.7, SDK 34, AVD root_pixel).
+- Slice verified: 15 unit tests + 2 Compose UI tests green; run live on emulator.
+
+## Next up
+- Push to GitHub (needs `gh auth login` with GITHUB_TOKEN unset - personal account).
+- Play Store policy reality-check for the Shield app-blocking approach (before build).
+- Set a real GROQ_API_KEY in local.properties to exit offline demo mode.
 
 ## Next (in order)
 1. **Tech stack + hosting decisions** (in progress). Record picks in DECISIONS "Tech".
