@@ -1,0 +1,46 @@
+# Root - roadmap
+
+## Done
+- Concept + product principles agreed.
+- Android UI mockups: 5 tabs + interrupt, time-adaptive theme, minimalist mode,
+  animated celestial-orb companion, immersive Stories, Shield insights.
+  (`design/mockup-android.html`)
+- Doc set seeded (CLAUDE.md, SPEC, DECISIONS, ROADMAP).
+- Tech stack + hosting decided (D17-D24).
+- Vertical slice CODE written (Kotlin + Compose): nav shell, time-adaptive +
+  minimalist theme engine, celestial Orb, Home, AI reflection session (Groq client
+  + ViewModel + prompts), placeholders for the other 4 tabs.
+- Unit-test suite written: TimeOfDay, Prompts, GroqClient (MockWebServer),
+  ReflectionViewModel state machine.
+- Runbooks: BUILD_AND_TEST, GITHUB, PLAY_STORE. README.
+
+## Blocked on
+- Toolchain install (JDK17 + gradle + android-commandlinetools via brew) - needs
+  the user to run the 3 brew commands; then the SDK packages, wrapper, and
+  `./gradlew testDebugUnitTest` run can proceed and verify the slice.
+
+## Next (in order)
+1. **Tech stack + hosting decisions** (in progress). Record picks in DECISIONS "Tech".
+2. **Reality-check the hard Android bits:** app-blocking (UsageStats +
+   AccessibilityService overlay), geofencing, Health Connect, Play Store policy.
+3. **Set up GitHub repo** with CLAUDE.md + docs committed (the portable memory).
+4. **Thin vertical slice first:** one tab end-to-end (recommended: Home + one
+   reflection session wired to the AI backend) to prove the loop before breadth.
+5. Onboarding + permissions flow.
+6. Shield interrupt engine (the technical centrepiece).
+7. Moments (geofence + food log).
+8. Stories (content pipeline + finite guardrails).
+9. Premium + Play Billing.
+10. Closed beta with real youth users -> measure retention -> PMF call.
+
+## Known risks / open questions
+- Play Store policy on AccessibilityService for app-blocking (used by real apps, but
+  Google scrutinises it - must justify the use case clearly).
+- Battery impact of geofencing + usage monitoring.
+- Cost per active user of LLM calls (mitigate with free = short interactions).
+- Content sourcing/quality + safety for Stories.
+- PRIVACY vs cost: free LLM tiers may train on submitted data - sensitive reflection
+  content must go through a no-training provider (Groq) or on-device (Gemini Nano). Revisit
+  as a first-class privacy decision before any beta with real users.
+- Free-tier rate limits (Gemini/Groq/Supabase) may throttle under load - watch as users grow.
+- Getting real users to grant Usage Access + Health + Location (onboarding UX is critical).

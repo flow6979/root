@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="night">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Root — Android (time-adaptive)</title>
+<style>
+/* ============ THEME ENGINE — UI color follows the sky ============ */
+:root{
+  --bezel:#0b0c0e;
+  --accent-fixed:#C79A54;              /* premium/amber, constant */
+  --danger:#D0654E;
+  --radius:20px;
+  --nav-h:76px;
+}
+/* MIDNIGHT (00–05) — black */
+html[data-theme="midnight"]{
+  --sky1:#04060B; --sky2:#0A0F18; --stars:1; --glow:#243a5e;
+  --surface:#10151F; --surface2:#161C28; --line:#20283600;
+  --line2:#222b39; --text:#E7EAF1; --dim:#79808E; --faint:#4a5160;
+  --accent:#4E74B0; --accent-soft:rgba(78,116,176,.16);
+  --nav-bg:#0A0F18F2; --scrim:rgba(4,6,11,.55); --orb:#8FA8C9; --orb-glow:#2a4a7a; --moon:1;
+  --shadow:0 10px 30px rgba(0,0,0,.5);
+}
+/* NIGHT (20–24) — night blue */
+html[data-theme="night"]{
+  --sky1:#0A1E3C; --sky2:#123056; --stars:.7; --glow:#2f5da0;
+  --surface:#152A4B; --surface2:#1B335A; --line:#ffffff00;
+  --line2:#26426d; --text:#EAF1FB; --dim:#93A6C6; --faint:#5b719a;
+  --accent:#5FA0E0; --accent-soft:rgba(95,160,224,.18);
+  --nav-bg:#0A1E3CF2; --scrim:rgba(8,22,46,.5); --orb:#DCE9FA; --orb-glow:#3f74c4; --moon:1;
+  --shadow:0 12px 34px rgba(0,0,0,.4);
+}
+/* DUSK (17–20) — amber to indigo */
+html[data-theme="dusk"]{
+  --sky1:#3A335C; --sky2:#C9764A; --stars:.15; --glow:#e0975a;
+  --surface:#ffffffF2; --surface2:#FBF3EC; --line:#eee2d6;
+  --line2:#ecdfd2; --text:#231B2E; --dim:#6E6478; --faint:#a99fb0;
+  --accent:#B5622F; --accent-soft:rgba(181,98,47,.12);
+  --nav-bg:#FFFFFFEE; --scrim:rgba(40,30,60,.35); --orb:#FFB877; --orb-glow:#e88a3c;
+  --shadow:0 12px 30px rgba(60,40,30,.18);
+}
+/* DAWN (05–08) — soft indigo to peach */
+html[data-theme="dawn"]{
+  --sky1:#AEBFDE; --sky2:#F3DED2; --stars:.1; --glow:#e7c9b4;
+  --surface:#FFFFFFF2; --surface2:#F6F1F5; --line:#ece4ec;
+  --line2:#e8dfe8; --text:#22283A; --dim:#69708A; --faint:#a9afc4;
+  --accent:#5A6FA8; --accent-soft:rgba(90,111,168,.12);
+  --nav-bg:#FFFFFFEE; --scrim:rgba(60,60,90,.25); --orb:#FFE3B0; --orb-glow:#f2c98a;
+  --shadow:0 12px 30px rgba(50,55,80,.14);
+}
+/* DAY (08–17) — sky blue / white, bright */
+html[data-theme="day"]{
+  --sky1:#BFDBF2; --sky2:#F5FAFE; --stars:0; --glow:#cfe6fa;
+  --surface:#FFFFFF; --surface2:#EEF5FC; --line:#e3edf6;
+  --line2:#e1ebf5; --text:#12202E; --dim:#5A6675; --faint:#a7b2be;
+  --accent:#2E77C2; --accent-soft:rgba(46,119,194,.10);
+  --nav-bg:#FFFFFFF2; --scrim:rgba(30,60,90,.2); --orb:#FFD86B; --orb-glow:#ffcf4d;
+  --shadow:0 12px 30px rgba(40,80,120,.12);
+}
+/* MINIMALIST — pure black & white, ignores time-of-day colour (wins via source order) */
+html[data-mono="on"]{
+  --sky1:#F5F5F5; --sky2:#FDFDFD; --stars:0; --glow:#d0d0d0;
+  --surface:#FFFFFF; --surface2:#F1F1F1; --line:#E7E7E7; --line2:#E7E7E7;
+  --text:#0E0E0E; --dim:#7C7C7C; --faint:#C2C2C2;
+  --accent:#111111; --accent-soft:#ECECEC; --accent-fixed:#111111;
+  --nav-bg:#FFFFFFF2; --scrim:rgba(0,0,0,.4); --orb:#CFCFCF; --orb-glow:#d8d8d8;
+  --shadow:0 8px 22px rgba(0,0,0,.06);
+}
+html[data-mono="on"] .premium{background:#F1F1F1;border-color:#E2E2E2}
+html[data-mono="on"] .premium::before{display:none}
+html[data-mono="on"] .premium .lk{color:#111}
+html[data-mono="on"] .premium p{color:#555}
+html[data-mono="on"] .donut{background:conic-gradient(#111 0 46%,#8a8a8a 46% 72%,#d9d9d9 72% 100%)}
+html[data-mono="on"] .btn::after{display:none}
+/* immersive story stays dark, but monochrome */
+html[data-mono="on"] .story-bg{background:radial-gradient(60% 50% at 70% 22%,rgba(255,255,255,.22),transparent 60%),linear-gradient(180deg,#0e0e0e,#2a2a2a 45%,#4a4a4a)}
+html[data-mono="on"] .moon{background:radial-gradient(circle at 38% 34%,#fff,#bcbcbc 60%);box-shadow:0 0 40px 10px rgba(255,255,255,.22)}
+html[data-mono="on"] .hills{background:linear-gradient(180deg,transparent,#000)}
+html[data-mono="on"] .story-copy .kick,html[data-mono="on"] .listen{color:#e8e8e8;border-color:rgba(255,255,255,.4)}
+html[data-mono="on"] .floaty{background:rgba(255,255,255,.85);box-shadow:0 0 8px rgba(255,255,255,.9)}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#1a1d22}
+body{
+  font-family:"Inter",Roboto,"Segoe UI",-apple-system,sans-serif;
+  padding:26px 20px 90px;color:#e8eaef;transition:background .8s ease;
+}
+
+/* ---- page + theme switcher ---- */
+.page-head{max-width:1500px;margin:0 auto 8px}
+.page-head h1{font-size:30px;letter-spacing:-.5px;color:#fff}
+.page-head p{color:#aab0bc;margin-top:8px;max-width:760px;line-height:1.5;font-size:14px}
+.switcher{position:sticky;top:14px;z-index:100;display:flex;flex-wrap:wrap;gap:8px;
+  align-items:center;max-width:1500px;margin:16px auto 26px;
+  background:#101319;border:1px solid #262b35;border-radius:16px;padding:12px 14px}
+.switcher b{font-size:12px;letter-spacing:.5px;color:#8b93a2;text-transform:uppercase;margin-right:4px}
+.tbtn{font-size:13px;font-weight:600;color:#c7ccd6;background:#1b2029;border:1px solid #2a303b;
+  padding:8px 14px;border-radius:10px;cursor:pointer;transition:.2s}
+.tbtn:hover{border-color:#3a4553}
+.tbtn.on{background:#2c65a8;border-color:#3f7cc4;color:#fff}
+.tbtn.auto{background:#233; border-color:#2f4a4a; color:#9fe6d8}
+.tbtn.auto.on{background:#1b6f5e;border-color:#28a488;color:#fff}
+.tbtn.mono.on{background:#f2f2f2;border-color:#fff;color:#111}
+.nowlabel{margin-left:auto;font-size:12px;color:#8b93a2}
+
+.gallery{display:flex;flex-wrap:wrap;gap:38px;justify-content:center;max-width:1600px;margin:0 auto}
+.phone{width:340px;flex:0 0 auto}
+.screen-label{text-align:center;font-weight:600;font-size:14px;margin-bottom:4px;color:#dfe3ea}
+.screen-sub{text-align:center;font-size:12px;color:#8b93a2;margin-bottom:14px}
+
+/* ---- device ---- */
+.device{width:340px;height:722px;background:var(--bezel);border-radius:34px;
+  border:9px solid var(--bezel);position:relative;overflow:hidden;
+  box-shadow:0 24px 60px rgba(0,0,0,.45);}
+.punch{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:11px;height:11px;
+  background:#000;border-radius:50%;z-index:60;box-shadow:inset 0 0 0 2px #1b1f27}
+.sky{position:absolute;inset:0;background:linear-gradient(180deg,var(--sky1),var(--sky2));
+  transition:background .8s ease;z-index:0}
+.stars{position:absolute;inset:0;z-index:1;opacity:var(--stars);transition:opacity .8s;
+  background-image:
+    radial-gradient(1.4px 1.4px at 30px 40px,#fff,transparent),
+    radial-gradient(1.2px 1.2px at 120px 90px,#fff,transparent),
+    radial-gradient(1.6px 1.6px at 210px 60px,#dfe,transparent),
+    radial-gradient(1.1px 1.1px at 270px 140px,#fff,transparent),
+    radial-gradient(1.3px 1.3px at 80px 180px,#fff,transparent),
+    radial-gradient(1.5px 1.5px at 300px 220px,#cef,transparent),
+    radial-gradient(1.1px 1.1px at 160px 250px,#fff,transparent);
+  animation:twinkle 4s ease-in-out infinite}
+@keyframes twinkle{0%,100%{opacity:var(--stars)}50%{opacity:calc(var(--stars) * .45)}}
+
+.statusbar{position:relative;z-index:20;height:34px;display:flex;align-items:center;
+  justify-content:space-between;padding:0 18px;font-size:12px;font-weight:600;color:var(--text)}
+.statusbar .r{display:flex;gap:6px;font-size:11px}
+.screenbody{position:relative;z-index:10;height:calc(100% - 34px);display:flex;flex-direction:column}
+.content{flex:1;overflow:hidden;padding:2px 15px 8px;position:relative}
+
+/* staggered entrance */
+.anim>*{opacity:0;animation:riseIn .6s cubic-bezier(.2,.7,.3,1) forwards}
+.anim>*:nth-child(1){animation-delay:.05s}
+.anim>*:nth-child(2){animation-delay:.13s}
+.anim>*:nth-child(3){animation-delay:.21s}
+.anim>*:nth-child(4){animation-delay:.29s}
+.anim>*:nth-child(5){animation-delay:.37s}
+.anim>*:nth-child(6){animation-delay:.45s}
+@keyframes riseIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+
+.appbar{display:flex;align-items:center;justify-content:space-between;padding:12px 3px 14px}
+.appbar h2{font-size:22px;font-weight:600;color:var(--text);letter-spacing:-.3px}
+.appbar .sub{font-size:12px;color:var(--dim);margin-top:3px}
+
+/* celestial orb companion */
+.orb-wrap{position:relative;width:44px;height:44px}
+.orb{width:44px;height:44px;border-radius:50%;
+  background:radial-gradient(circle at 35% 32%, #fff, var(--orb) 55%, var(--orb) 100%);
+  box-shadow:0 0 22px 4px var(--orb-glow);animation:breathe 5s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scale(1);box-shadow:0 0 20px 3px var(--orb-glow)}
+  50%{transform:scale(1.06);box-shadow:0 0 30px 8px var(--orb-glow)}}
+
+/* ---- living weather on the celestial orb: passing clouds + moon phases ---- */
+.orb,.companion .big-orb,.overlay .big-orb,.end .big-orb{position:relative;overflow:hidden}
+/* moon phase: dark limb slides across, full -> gibbous -> crescent -> full (moon themes only) */
+.orb::before,.companion .big-orb::before,.overlay .big-orb::before,.end .big-orb::before{
+  content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  opacity:var(--moon,0);transition:opacity .8s;animation:phaseShift 30s ease-in-out infinite}
+@keyframes phaseShift{
+  0%,100%{box-shadow:inset 0 0 0 0 rgba(8,13,30,0)}
+  25%{box-shadow:inset 13px 1px 6px 1px rgba(8,13,30,.6)}
+  50%{box-shadow:inset 24px 2px 4px 2px rgba(8,13,30,.82)}
+  75%{box-shadow:inset 13px 1px 6px 1px rgba(8,13,30,.6)}}
+/* cloud: soft veil drifts across the face occasionally (all themes) */
+.orb::after,.companion .big-orb::after,.overlay .big-orb::after,.end .big-orb::after{
+  content:"";position:absolute;top:16%;left:-80%;width:130%;height:66%;border-radius:60px;
+  background:radial-gradient(closest-side,rgba(214,221,234,.9),rgba(214,221,234,0) 72%);
+  filter:blur(3px);opacity:0;pointer-events:none;animation:cloudpass 16s ease-in-out infinite}
+.companion .big-orb::after{animation-duration:19s;animation-delay:-6s}
+.companion .big-orb::before{animation-duration:34s;animation-delay:-9s}
+.overlay .big-orb::after{animation-duration:21s;animation-delay:-3s}
+@keyframes cloudpass{
+  0%{transform:translateX(0);opacity:0}
+  48%{transform:translateX(35%);opacity:0}
+  58%{opacity:.6}
+  70%{transform:translateX(95%);opacity:.6}
+  80%{opacity:0}
+  100%{transform:translateX(170%);opacity:0}}
+
+.companion{display:flex;flex-direction:column;align-items:center;text-align:center;
+  padding:18px 16px 20px;margin-bottom:14px;border-radius:26px;
+  background:var(--surface);border:1px solid var(--line2);box-shadow:var(--shadow)}
+.companion .big-orb{width:70px;height:70px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #fff, var(--orb) 55%);
+  box-shadow:0 0 40px 8px var(--orb-glow);animation:breathe 5s ease-in-out infinite;margin-bottom:12px}
+.companion .say{font-size:13.5px;color:var(--text);font-weight:500;line-height:1.5;max-width:250px}
+
+.card{background:var(--surface);border:1px solid var(--line2);border-radius:var(--radius);
+  padding:16px;box-shadow:var(--shadow);margin-bottom:14px}
+.card h3{font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px}
+.card p{font-size:13px;color:var(--dim);line-height:1.5}
+.sectitle{font-size:11px;font-weight:700;letter-spacing:.6px;color:var(--dim);
+  text-transform:uppercase;margin:6px 3px 10px}
+
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;
+  padding:5px 11px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+.pill .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pulse 1.6s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 var(--accent)}70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+
+.btn{display:block;width:100%;text-align:center;background:var(--accent);color:#fff;
+  font-weight:600;font-size:15px;padding:15px;border-radius:100px;position:relative;overflow:hidden}
+.btn::after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);
+  animation:sweep 4s ease-in-out infinite}
+@keyframes sweep{0%{left:-60%}55%,100%{left:130%}}
+.btn.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.btn.ghost::after{display:none}
+.mood{display:flex;justify-content:space-around;font-size:27px;margin-top:12px}
+.mood span{cursor:pointer;transition:transform .2s;filter:saturate(.2)}
+.mood span:hover{transform:scale(1.35) translateY(-3px);filter:none}
+.chip{font-size:11px;color:var(--dim);text-align:center;margin-top:8px}
+
+.row{display:flex;align-items:center;gap:12px}
+.row+.row{margin-top:15px}
+.row .ic{width:40px;height:40px;border-radius:50%;background:var(--accent-soft);
+  display:flex;align-items:center;justify-content:center;font-size:18px;flex:0 0 auto}
+.row .txt{flex:1}.row .txt .t{font-size:14px;font-weight:600;color:var(--text)}
+.row .txt .d{font-size:12px;color:var(--dim)}
+.tog{width:46px;height:27px;border-radius:20px;background:var(--accent);position:relative;flex:0 0 auto;transition:.2s}
+.tog::after{content:"";position:absolute;top:3px;right:3px;width:21px;height:21px;border-radius:50%;background:#fff;transition:.25s}
+.tog.off{background:var(--faint)}.tog.off::after{right:auto;left:3px}
+
+/* premium card */
+.premium{background:linear-gradient(120deg,#2A2418,#4A3A1E);border:1px solid #5a4726;position:relative;overflow:hidden}
+.premium::before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent 40%,rgba(255,215,140,.14),transparent 60%);animation:sweep 5s infinite}
+.premium .lk{display:flex;align-items:center;gap:7px;color:var(--accent-fixed);font-weight:700;font-size:12px}
+.premium p{color:#e6d6b4}
+
+/* ---- charts (Shield) ---- */
+.bars{display:flex;align-items:flex-end;gap:9px;height:110px;padding-top:6px}
+.bars .b{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.bars .b i{width:100%;border-radius:6px 6px 3px 3px;background:var(--accent-soft);
+  transform-origin:bottom;animation:grow 1s cubic-bezier(.2,.8,.3,1) forwards;transform:scaleY(0)}
+.bars .b.hot i{background:var(--accent)}
+.bars .b span{font-size:10px;color:var(--dim)}
+@keyframes grow{to{transform:scaleY(1)}}
+.donut{width:86px;height:86px;border-radius:50%;flex:0 0 auto;
+  background:conic-gradient(var(--accent) 0 46%, var(--accent-fixed) 46% 72%, var(--faint) 72% 100%);
+  -webkit-mask:radial-gradient(circle 26px at center,transparent 98%,#000 100%);
+  mask:radial-gradient(circle 26px at center,transparent 98%,#000 100%);animation:spin 1s ease}
+@keyframes spin{from{transform:rotate(-40deg) scale(.8);opacity:0}to{transform:none;opacity:1}}
+.legend{font-size:12px;color:var(--dim);line-height:1.9}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px}
+.ai-card{background:var(--surface);border:1px solid var(--accent);border-left:3px solid var(--accent);
+  border-radius:16px;padding:15px;box-shadow:var(--shadow);margin-bottom:14px}
+.ai-card .hd{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px;color:var(--accent);margin-bottom:8px}
+.ai-card p{font-size:13px;color:var(--text);line-height:1.55}
+.suggests{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
+.suggests span{font-size:11.5px;font-weight:600;color:var(--text);background:var(--surface2);
+  border:1px solid var(--line2);padding:7px 11px;border-radius:20px}
+
+/* ---- interrupt overlay ---- */
+.overlay{position:absolute;inset:0;z-index:15;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;padding:30px 26px;
+  background:radial-gradient(120% 80% at 50% 20%, rgba(20,40,74,.6), rgba(4,8,16,.92))}
+.overlay .big-orb{width:76px;height:76px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#fff,var(--orb) 55%);
+  box-shadow:0 0 50px 10px var(--orb-glow);animation:breathe 4s ease-in-out infinite;margin-bottom:16px}
+.overlay h3{font-size:22px;font-weight:600;color:#fff;line-height:1.3;margin-bottom:10px}
+.overlay p{font-size:14px;color:#c4d3ea;line-height:1.55;margin-bottom:26px;max-width:270px}
+.overlay .btn.later{background:transparent;color:#94a8c6;border:1.5px solid #35507a;margin-top:11px}
+.overlay .btn.later::after{display:none}
+
+/* ---- Stories immersive ---- */
+.story-scene{position:absolute;inset:0;overflow:hidden}
+.story-bg{position:absolute;inset:-8%;background:
+  radial-gradient(60% 50% at 70% 22%, rgba(120,150,210,.5), transparent 60%),
+  linear-gradient(180deg,#0A1730 0%, #16294B 45%, #23375c 100%);
+  animation:kenburns 18s ease-in-out infinite alternate}
+@keyframes kenburns{from{transform:scale(1) translate(0,0)}to{transform:scale(1.12) translate(-3%,-2%)}}
+.moon{position:absolute;top:70px;right:56px;width:56px;height:56px;border-radius:50%;
+  background:radial-gradient(circle at 38% 34%,#fff,#c9d7ee 60%);box-shadow:0 0 40px 10px rgba(150,180,230,.5);
+  animation:breathe 7s ease-in-out infinite}
+.hills{position:absolute;bottom:0;left:0;right:0;height:150px;
+  background:linear-gradient(180deg,transparent,#060C18);
+  clip-path:polygon(0 55%,15% 42%,32% 55%,50% 38%,68% 52%,84% 40%,100% 55%,100% 100%,0 100%)}
+.floaty{position:absolute;width:5px;height:5px;border-radius:50%;background:rgba(200,220,255,.8);
+  box-shadow:0 0 8px rgba(180,210,255,.9);animation:drift 12s linear infinite}
+.floaty:nth-child(1){left:20%;top:40%;animation-delay:0s}
+.floaty:nth-child(2){left:60%;top:30%;width:3px;height:3px;animation-delay:3s}
+.floaty:nth-child(3){left:78%;top:55%;animation-delay:6s}
+.floaty:nth-child(4){left:38%;top:60%;width:4px;height:4px;animation-delay:9s}
+@keyframes drift{0%{transform:translateY(0);opacity:0}15%{opacity:1}100%{transform:translateY(-120px);opacity:0}}
+.story-scrim{position:absolute;left:0;right:0;bottom:0;height:62%;
+  background:linear-gradient(180deg,transparent,rgba(4,8,16,.6) 40%,rgba(4,8,16,.95));z-index:5}
+.story-copy{position:absolute;left:0;right:0;bottom:0;z-index:6;padding:22px 22px 18px}
+.story-copy .kick{font-size:11px;font-weight:700;letter-spacing:1.5px;color:#F0C987;text-transform:uppercase}
+.story-copy h3{font-size:24px;font-weight:700;color:#fff;line-height:1.25;margin:8px 0 12px;letter-spacing:-.3px}
+.story-copy .body{font-size:14px;color:#d6e0f0;line-height:1.6}
+.story-top{position:absolute;top:0;left:0;right:0;z-index:7;padding:14px 20px;display:flex;
+  align-items:center;justify-content:space-between}
+.story-top .count{font-size:12px;color:#cdd8ec;font-weight:600}
+.progress-seg{display:flex;gap:5px;flex:1;margin-left:14px}
+.progress-seg i{flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.25)}
+.progress-seg i.done{background:#fff}
+.progress-seg i.now{background:linear-gradient(90deg,#fff 40%,rgba(255,255,255,.3) 40%)}
+.listen{display:flex;align-items:center;gap:8px;justify-content:center;font-size:13px;
+  font-weight:700;color:#F0C987;border:1.5px solid rgba(240,201,135,.5);border-radius:100px;
+  padding:12px;margin-top:16px;background:rgba(0,0,0,.2)}
+.swipe-hint{text-align:center;color:#aebcd4;font-size:11.5px;margin-top:12px;animation:bob 2s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0);opacity:.7}50%{transform:translateY(-5px);opacity:1}}
+
+.end{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;height:100%;padding:24px}
+.end .big-orb{width:80px;height:80px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,var(--orb) 55%);
+  box-shadow:0 0 46px 10px var(--orb-glow);animation:breathe 5s infinite;margin-bottom:16px}
+.end h3{font-size:21px;font-weight:600;color:var(--text);margin-bottom:8px}
+.end p{font-size:13px;color:var(--dim);line-height:1.55;max-width:250px}
+
+/* bottom nav */
+.navbar{height:var(--nav-h);background:var(--nav-bg);backdrop-filter:blur(14px);
+  border-top:1px solid var(--line2);display:flex;padding:9px 4px 16px}
+.nav{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;
+  color:var(--dim);font-weight:500}
+.nav .ic{font-size:19px;padding:3px 17px;border-radius:16px;filter:grayscale(1);opacity:.55;transition:.25s}
+.nav.on{color:var(--accent)}
+.nav.on .ic{background:var(--accent-soft);filter:none;opacity:1;transform:translateY(-1px)}
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <h1>Root <span style="font-size:18px;color:#8b93a2">· Android · time-adaptive</span></h1>
+    <p>The whole UI follows the sky. Use the switcher to preview each time of day — the background, star field, accent color, and the companion orb (moon ↔ sun) all shift. Entrance, breathing-orb, chart-draw, and story motion are live. B/W base, single time-tinted accent.</p>
+  </div>
+
+  <div class="switcher">
+    <b>Time of day</b>
+    <button class="tbtn auto on" data-t="auto">◐ Auto (now)</button>
+    <button class="tbtn" data-t="dawn">🌅 Dawn</button>
+    <button class="tbtn" data-t="day">☀️ Day</button>
+    <button class="tbtn" data-t="dusk">🌆 Dusk</button>
+    <button class="tbtn" data-t="night">🌙 Night</button>
+    <button class="tbtn" data-t="midnight">🌑 Midnight</button>
+    <button class="tbtn mono" id="monoBtn">◻︎ Minimalist B&amp;W</button>
+    <span class="nowlabel" id="nowlabel"></span>
+  </div>
+
+  <div class="gallery">
+
+    <!-- HOME -->
+    <div class="phone">
+      <div class="screen-label">1 · Home — your AI friend</div>
+      <div class="screen-sub">orb = the current time of day</div>
+      <div class="device">
+        <div class="sky"></div><div class="stars"></div><div class="punch"></div>
+        <div class="statusbar"><span>9:41</span><span class="r">📶 🔋</span></div>
+        <div class="screenbody">
+          <div class="content anim">
+            <div class="appbar">
+              <div><h2>Hey, Vaibhav</h2><div class="sub">Tuesday · 4 days in</div></div>
+              <div class="orb-wrap"><div class="orb"></div></div>
+            </div>
+            <div class="companion">
+              <div class="big-orb"></div>
+              <div class="say">“You slept a little better last night. Proud of you. Want to talk for a bit?”</div>
+            </div>
+            <div class="card">
+              <span class="pill"><span class="dot"></span>Daily check-in</span>
+              <h3 style="margin-top:10px">How are you feeling right now?</h3>
+              <div class="mood"><span>😔</span><span>😐</span><span>🙂</span><span>😌</span><span>⚡️</span></div>
+            </div>
+            <a class="btn">Start a reflection session</a>
+            <div class="chip">5 min · just talk, I'll listen</div>
+          </div>
+          <div class="navbar">
+            <div class="nav on"><span class="ic">🏠</span>Home</div>
+            <div class="nav"><span class="ic">🛡️</span>Shield</div>
+            <div class="nav"><span class="ic">📍</span>Moments</div>
+            <div class="nav"><span class="ic">📖</span>Stories</div>
+            <div class="nav"><span class="ic">⚙️</span>You</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INTERRUPT -->
+    <div class="phone">
+      <div class="screen-label">1a · The interrupt</div>
+      <div class="screen-sub">appears the instant Reels/Shorts opens</div>
+      <div class="device">
+        <div class="sky"></div><div class="stars"></div><div class="punch"></div>
+        <div class="statusbar"><span>9:41</span><span class="r">📶 🔋</span></div>
+        <div class="screenbody">
+          <div class="overlay">
+            <div class="big-orb"></div>
+            <h3>Hey — you opened Instagram.</h3>
+            <p>It's 11:48pm. Last night this kept you up till 2. Want to sit with me for 60 seconds instead?</p>
+            <a class="btn">Okay, let's pause</a>
+            <a class="btn later">Open anyway (10s)</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SHIELD w/ CHARTS + AI -->
+    <div class="phone">
+      <div class="screen-label">2 · Shield — insights + AI analysis</div>
+      <div class="screen-sub">charts · Root's read · suggestions</div>
+      <div class="device">
+        <div class="sky"></div><div class="stars"></div><div class="punch"></div>
+        <div class="statusbar"><span>9:41</span><span class="r">📶 🔋</span></div>
+        <div class="screenbody">
+          <div class="content anim" style="overflow-y:auto">
+            <div class="appbar"><div><h2>Shield</h2><div class="sub">This week · screen time</div></div></div>
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <div><div style="font-size:26px;font-weight:700;color:var(--text)">3h 12m</div>
+                <div style="font-size:12px;color:var(--dim)">daily avg · ↓ 38m vs last week</div></div>
+                <span class="pill">↓ improving</span>
+              </div>
+              <div class="bars">
+                <div class="b"><i style="height:55%"></i><span>M</span></div>
+                <div class="b"><i style="height:78%"></i><span>T</span></div>
+                <div class="b hot"><i style="height:64%"></i><span>W</span></div>
+                <div class="b"><i style="height:90%"></i><span>T</span></div>
+                <div class="b"><i style="height:48%"></i><span>F</span></div>
+                <div class="b"><i style="height:70%"></i><span>S</span></div>
+                <div class="b"><i style="height:40%"></i><span>S</span></div>
+              </div>
+            </div>
+            <div class="ai-card">
+              <div class="hd">🧠 Root's read</div>
+              <p>Your worst scroll window is <b>11pm–1am</b> — it's costing you ~45 min of sleep. Thursdays spike hardest, usually after a stressful day.</p>
+              <div class="suggests"><span>🌙 Auto-block after 11pm</span><span>🛌 Wind-down at 10:30</span><span>💬 Talk it out Thu eve</span></div>
+            </div>
+            <div class="card">
+              <h3 style="margin-bottom:12px">Where it goes</h3>
+              <div class="row" style="align-items:center;gap:16px">
+                <div class="donut"></div>
+                <div class="legend">
+                  <div><i style="background:var(--accent)"></i>Instagram · 46%</div>
+                  <div><i style="background:var(--accent-fixed)"></i>YouTube · 26%</div>
+                  <div><i style="background:var(--faint)"></i>Other · 28%</div>
+                </div>
+              </div>
+            </div>
+            <div class="sectitle">Apps I'll interrupt</div>
+            <div class="card">
+              <div class="row"><div class="ic">📸</div><div class="txt"><div class="t">Instagram</div><div class="d">Reels · 1h 20m</div></div><div class="tog"></div></div>
+              <div class="row"><div class="ic">▶️</div><div class="txt"><div class="t">YouTube</div><div class="d">Shorts · 48m</div></div><div class="tog"></div></div>
+            </div>
+            <div class="card premium">
+              <div class="lk">🔒 Strict Mode — Premium</div>
+              <p style="margin-top:6px;font-size:13px">No “open anyway.” Timed lockouts you can't bypass.</p>
+            </div>
+          </div>
+          <div class="navbar">
+            <div class="nav"><span class="ic">🏠</span>Home</div>
+            <div class="nav on"><span class="ic">🛡️</span>Shield</div>
+            <div class="nav"><span class="ic">📍</span>Moments</div>
+            <div class="nav"><span class="ic">📖</span>Stories</div>
+            <div class="nav"><span class="ic">⚙️</span>You</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MOMENTS -->
+    <div class="phone">
+      <div class="screen-label">3 · Moments — real-world catcher</div>
+      <div class="screen-sub">geofence + food log</div>
+      <div class="device">
+        <div class="sky"></div><div class="stars"></div><div class="punch"></div>
+        <div class="statusbar"><span>9:41</span><span class="r">📶 🔋</span></div>
+        <div class="screenbody">
+          <div class="content anim">
+            <div class="appbar"><div><h2>Moments</h2><div class="sub">Caught in real life, gently</div></div></div>
+            <div class="card">
+              <span class="pill"><span class="dot"></span>Live · nearby</span>
+              <h3 style="margin-top:10px">You're near “Burger Point”</h3>
+              <p>Pause 10 seconds before deciding? You wanted 3 home-cooked days — you're at 1.</p>
+            </div>
+            <div class="sectitle">Today's log</div>
+            <div class="card">
+              <div class="row"><div class="ic">🥗</div><div class="txt"><div class="t">Home lunch</div><div class="d">1:10pm · photo logged</div></div><span style="color:var(--accent)">✓</span></div>
+              <div class="row"><div class="ic">🍔</div><div class="txt"><div class="t">Fast food</div><div class="d">8:30pm · you flagged</div></div><span style="color:var(--danger)">⚠︎</span></div>
+              <div class="row"><div class="ic">😴</div><div class="txt"><div class="t">Sleep</div><div class="d">6h 20m · Google Fit</div></div><span style="color:var(--dim)">↓</span></div>
+            </div>
+            <a class="btn ghost">＋ Log what you ate</a>
+          </div>
+          <div class="navbar">
+            <div class="nav"><span class="ic">🏠</span>Home</div>
+            <div class="nav"><span class="ic">🛡️</span>Shield</div>
+            <div class="nav on"><span class="ic">📍</span>Moments</div>
+            <div class="nav"><span class="ic">📖</span>Stories</div>
+            <div class="nav"><span class="ic">⚙️</span>You</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STORIES IMMERSIVE -->
+    <div class="phone">
+      <div class="screen-label">4 · Stories — immersive, full-bleed</div>
+      <div class="screen-sub">animated scene · ken-burns · drifting light</div>
+      <div class="device">
+        <div class="punch"></div>
+        <div class="statusbar" style="color:#fff;position:absolute;width:100%;z-index:20"><span>9:41</span><span class="r">📶 🔋</span></div>
+        <div class="screenbody">
+          <div class="story-scene">
+            <div class="story-bg"></div>
+            <div class="moon"></div>
+            <div class="floaty"></div><div class="floaty"></div><div class="floaty"></div><div class="floaty"></div>
+            <div class="hills"></div>
+            <div class="story-scrim"></div>
+            <div class="story-top">
+              <div class="progress-seg"><i class="done"></i><i class="now"></i><i></i><i></i><i></i></div>
+            </div>
+            <div class="story-copy">
+              <div class="kick">Someone like you</div>
+              <h3>The night Aman deleted the app at 3am</h3>
+              <div class="body">He'd told himself “five minutes.” Two hours later the ceiling was still blue-lit and grey. What changed wasn't willpower — it was one small rule he made with himself the next morning…</div>
+              <div class="listen">🎧 Listen instead · Premium</div>
+              <div class="swipe-hint">↑ swipe up when you're ready — no rush</div>
+            </div>
+          </div>
+          <div class="navbar">
+            <div class="nav"><span class="ic">🏠</span>Home</div>
+            <div class="nav"><span class="ic">🛡️</span>Shield</div>
+            <div class="nav"><span class="ic">📍</span>Moments</div>
+            <div class="nav on"><span class="ic">📖</span>Stories</div>
+            <div class="nav"><span class="ic">⚙️</span>You</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STORIES END -->
+    <div class="phone">
+      <div class="screen-label">4a · Stories — the ending</div>
+      <div class="screen-sub">the scroll deliberately runs out</div>
+      <div class="device">
+        <div class="sky"></div><div class="stars"></div><div class="punch"></div>
+        <div class="statusbar"><span>9:41</span><span class="r">📶 🔋</span></div>
+        <div class="screenbody">
+          <div class="content">
+            <div class="end">
+              <div class="big-orb"></div>
+              <h3>That's enough for today.</h3>
+              <p>You read 5 stories. Now go live your real one — text a friend, step outside, or just breathe. I'll be here tomorrow.</p>
+              <a class="btn" style="margin-top:22px">Close & go outside</a>
+            </div>
+          </div>
+          <div class="navbar">
+            <div class="nav"><span class="ic">🏠</span>Home</div>
+            <div class="nav"><span class="ic">🛡️</span>Shield</div>
+            <div class="nav"><span class="ic">📍</span>Moments</div>
+            <div class="nav on"><span class="ic">📖</span>Stories</div>
+            <div class="nav"><span class="ic">⚙️</span>You</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- YOU -->
+    <div class="phone">
+      <div class="screen-label">5 · You — settings & premium</div>
+      <div class="screen-sub">personality · accountability · plan</div>
+      <div class="device">
+        <div class="sky"></div><div class="stars"></div><div class="punch"></div>
+        <div class="statusbar"><span>9:41</span><span class="r">📶 🔋</span></div>
+        <div class="screenbody">
+          <div class="content anim">
+            <div class="appbar"><div><h2>You</h2><div class="sub">Vaibhav · Free plan</div></div><div class="orb-wrap"><div class="orb"></div></div></div>
+            <div class="card premium">
+              <div class="lk">✨ Root Premium</div>
+              <p style="margin:6px 0 12px;font-size:13px">Strict mode · unlimited AI · weekly insights · story audio</p>
+              <a class="btn" style="background:var(--accent-fixed);color:#231a08">Try 7 days free</a>
+            </div>
+            <div class="sectitle">Appearance</div>
+            <div class="card">
+              <div class="row"><div class="ic">🎨</div><div class="txt"><div class="t">Time-adaptive colour</div><div class="d">UI follows the sky</div></div><div class="tog"></div></div>
+              <div class="row"><div class="ic">◻️</div><div class="txt"><div class="t">Minimalist (B&amp;W)</div><div class="d">Pure black & white, no colour</div></div><div class="tog off"></div></div>
+            </div>
+            <div class="sectitle">Your friend</div>
+            <div class="card">
+              <div class="row"><div class="ic">💬</div><div class="txt"><div class="t">Personality</div><div class="d">Gentle</div></div><span style="color:var(--dim)">›</span></div>
+              <div class="row"><div class="ic">🎙️</div><div class="txt"><div class="t">Voice</div><div class="d">Premium</div></div><span style="color:var(--accent-fixed)">🔒</span></div>
+              <div class="row"><div class="ic">🤝</div><div class="txt"><div class="t">Accountability partner</div><div class="d">Not set</div></div><span style="color:var(--dim)">›</span></div>
+            </div>
+            <div class="sectitle">Permissions</div>
+            <div class="card">
+              <div class="row"><div class="ic">📱</div><div class="txt"><div class="t">Usage access</div></div><div class="tog"></div></div>
+              <div class="row"><div class="ic">❤️</div><div class="txt"><div class="t">Google Fit & sleep</div></div><div class="tog"></div></div>
+              <div class="row"><div class="ic">📍</div><div class="txt"><div class="t">Location</div></div><div class="tog off"></div></div>
+            </div>
+          </div>
+          <div class="navbar">
+            <div class="nav"><span class="ic">🏠</span>Home</div>
+            <div class="nav"><span class="ic">🛡️</span>Shield</div>
+            <div class="nav"><span class="ic">📍</span>Moments</div>
+            <div class="nav"><span class="ic">📖</span>Stories</div>
+            <div class="nav on"><span class="ic">⚙️</span>You</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+  const root = document.documentElement;
+  const label = document.getElementById('nowlabel');
+  const btns = [...document.querySelectorAll('.tbtn')];
+
+  function themeForHour(h){
+    if(h>=0 && h<5)  return 'midnight';
+    if(h>=5 && h<8)  return 'dawn';
+    if(h>=8 && h<17) return 'day';
+    if(h>=17 && h<20)return 'dusk';
+    return 'night';                      // 20–24
+  }
+  function apply(theme, isAuto){
+    let t = theme;
+    if(isAuto){ const h=new Date().getHours(); t = themeForHour(h);
+      label.textContent = 'now ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) + ' → ' + t;
+    } else { label.textContent = 'previewing: ' + theme; }
+    root.setAttribute('data-theme', t);
+  }
+  btns.forEach(b=>b.addEventListener('click',()=>{
+    btns.forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    apply(b.dataset.t, b.dataset.t==='auto');
+  }));
+  // start on auto
+  apply('auto', true);
+
+  // minimalist B&W toggle (overrides time colour, time buttons still active underneath)
+  const monoBtn = document.getElementById('monoBtn');
+  monoBtn.addEventListener('click',()=>{
+    const on = root.getAttribute('data-mono')==='on';
+    root.setAttribute('data-mono', on ? 'off' : 'on');
+    monoBtn.classList.toggle('on', !on);
+  });
+</script>
+</body>
+</html>
