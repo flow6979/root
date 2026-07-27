@@ -118,14 +118,10 @@ private fun AiStories(premium: Boolean, tts: TextToSpeech) {
     }
 
     Box(Modifier.fillMaxSize()) {
-        if (index >= TOTAL) { EndingState(onClose = { index = 0; stories.clear(); refreshKey++ }); return@Box }
-
-        // refresh: fresh set of AI stories
-        Box(
-            Modifier.align(Alignment.TopEnd).padding(top = 22.dp, end = 16.dp)
-                .clip(RoundedCornerShape(100)).background(Color(0x33000000))
-                .clickable { index = 0; stories.clear(); refreshKey++ }.padding(horizontal = 12.dp, vertical = 6.dp),
-        ) { Text("↻ New", color = AMBER, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+        if (index >= TOTAL) {
+            EndingState(onReadMore = { index = 0; stories.clear(); refreshKey++ })
+            return@Box
+        }
 
         val transition = rememberInfiniteTransition(label = "moon")
         val scale by transition.animateFloat(1f, 1.05f, infiniteRepeatable(tween(3500), RepeatMode.Reverse), label = "s")
@@ -205,16 +201,8 @@ private fun ClassicsSection(premium: Boolean, tts: TextToSpeech) {
     var shown by remember { mutableStateOf(Classics.random(6)) }
     if (w == null) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Read by the greats", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    Text("A fresh set of public-domain excerpts.", color = Color(0xFFAEBCD4), fontSize = 13.sp)
-                }
-                Box(
-                    Modifier.clip(RoundedCornerShape(100)).background(Color(0x22FFFFFF))
-                        .clickable { shown = Classics.random(6) }.padding(horizontal = 14.dp, vertical = 8.dp),
-                ) { Text("↻ Shuffle", color = AMBER, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
-            }
+            Text("Read by the greats", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text("Short excerpts from public-domain poets.", color = Color(0xFFAEBCD4), fontSize = 13.sp)
             Spacer(Modifier.height(16.dp))
             shown.forEach { work ->
                 Box(
@@ -228,6 +216,13 @@ private fun ClassicsSection(premium: Boolean, tts: TextToSpeech) {
                 }
                 Spacer(Modifier.height(10.dp))
             }
+            Spacer(Modifier.height(6.dp))
+            Box(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(100)).background(Color(0x22FFFFFF))
+                    .clickable { shown = Classics.random(6) }.padding(vertical = 13.dp),
+                contentAlignment = Alignment.Center,
+            ) { Text("More", color = AMBER, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
+            Spacer(Modifier.height(16.dp))
         }
     } else {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
@@ -285,7 +280,7 @@ private fun speakCalm(tts: TextToSpeech, text: String, id: String) {
 }
 
 @Composable
-private fun EndingState(onClose: () -> Unit) {
+private fun EndingState(onReadMore: () -> Unit) {
     Column(
         Modifier.fillMaxSize().padding(30.dp),
         verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally,
@@ -295,12 +290,15 @@ private fun EndingState(onClose: () -> Unit) {
         Text("That's enough for today.", color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
         Text(
-            "Go live your real one. Text a friend, step outside, or just breathe.",
+            "Honestly, this is a good place to stop. Go live your real one, text a friend, step outside, or just breathe.",
             color = Color(0xFFC4D3EA), fontSize = 14.sp, textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(24.dp))
-        Button(onClick = onClose, colors = ButtonDefaults.buttonColors(containerColor = Color.White)) {
-            Text("Read more tomorrow", color = NIGHT_TOP, fontWeight = FontWeight.SemiBold)
-        }
+        Box(
+            Modifier.clip(RoundedCornerShape(100)).background(Color(0x22FFFFFF))
+                .clickable(onClick = onReadMore).padding(horizontal = 22.dp, vertical = 12.dp),
+        ) { Text("Read a few more", color = AMBER, fontWeight = FontWeight.SemiBold) }
+        Spacer(Modifier.height(8.dp))
+        Text("(but tomorrow-you will thank you for stopping)", color = Color(0xFF8FA0BB), fontSize = 11.sp)
     }
 }
