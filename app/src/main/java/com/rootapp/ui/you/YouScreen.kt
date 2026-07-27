@@ -20,11 +20,16 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import com.rootapp.billing.BillingManager
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -56,6 +61,9 @@ fun YouScreen(
     var premium by remember { mutableStateOf(settings.premium) }
     var refresh by remember { mutableIntStateOf(0) }
     LifecycleResumeEffect(Unit) { refresh++; onPauseOrDispose { } }
+    val activity = remember { context.findActivity() }
+    val billing = remember { BillingManager(context) { premium = true } }
+    DisposableEffect(Unit) { billing.start(); onDispose { billing.close() } }
     val hasUsage = remember(refresh) { ShieldPermissions.hasUsageAccess(context) }
     val hasOverlay = remember(refresh) { ShieldPermissions.hasOverlay(context) }
 
@@ -84,16 +92,42 @@ fun YouScreen(
                     color = Color(0xFFD6E6DA), fontSize = 13.sp,
                 )
                 Spacer(Modifier.height(12.dp))
-                Button(
-                    onClick = { premium = !premium; settings.premium = premium },
-                    colors = ButtonDefaults.buttonColors(containerColor = PremiumAccent),
-                ) {
-                    Text(if (premium) "Turn off (test)" else "Unlock premium (test)",
-                        color = Color(0xFF231A08), fontWeight = FontWeight.SemiBold)
+                when {
+                    premium -> {
+                        // Manage/cancel happens in Google Play; keep a local off switch for testing.
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = { premium = false; settings.premium = false },
+                        ) { Text("Turn off (test)", color = Color(0xFFD6E6DA), fontWeight = FontWeight.SemiBold) }
+                    }
+                    billing.available && activity != null -> {
+                        Button(
+                            onClick = { billing.purchase(activity) },
+                            colors = ButtonDefaults.buttonColors(containerColor = PremiumAccent),
+                        ) {
+                            Text(
+                                "Go Premium" + (billing.priceText?.let { " · $it/mo" } ?: ""),
+                                color = Color(0xFF231A08), fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text("Billed through Google Play. Cancel anytime.",
+                            color = Color(0xFFB9CFC0), fontSize = 11.sp)
+                    }
+                    else -> {
+                        // Play/product not reachable here (emulator, debug, or product not live yet).
+                        Button(
+                            onClick = { premium = true; settings.premium = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = PremiumAccent),
+                        ) {
+                            Text("Unlock premium (test)",
+                                color = Color(0xFF231A08), fontWeight = FontWeight.SemiBold)
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text("Test unlock. The Google Play purchase button appears here once the " +
+                            "subscription is live and you're signed in to Play.",
+                            color = Color(0xFFB9CFC0), fontSize = 11.sp)
+                    }
                 }
-                Spacer(Modifier.height(6.dp))
-                Text("Test unlock. Real purchases come with Play Billing.",
-                    color = Color(0xFFB9CFC0), fontSize = 11.sp)
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -165,10 +199,20 @@ fun YouScreen(
         }
         Spacer(Modifier.height(16.dp))
 
-        Text("Root v0.1 · made with care", fontSize = 11.sp, color = palette.dim,
-            modifier = Modifier.fillMaxWidth())
+        Text("Root v${com.rootapp.BuildConfig.VERSION_NAME} · made with care",
+            fontSize = 11.sp, color = palette.dim, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(24.dp))
     }
+}
+
+/** Unwrap the Activity from a Compose Context (needed to launch the Play purchase sheet). */
+private fun Context.findActivity(): Activity? {
+    var c: Context? = this
+    while (c is ContextWrapper) {
+        if (c is Activity) return c
+        c = c.baseContext
+    }
+    return null
 }
 
 @Composable

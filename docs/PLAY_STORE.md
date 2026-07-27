@@ -18,13 +18,28 @@
 Every upload must increase `versionCode` (integer) in `app/build.gradle.kts`; bump
 `versionName` (e.g. `0.2.4`) for humans. Current: `versionCode = 15`, `versionName = "0.2.4"`.
 
-## Selling premium (Play Billing) - TODO
-1. Play Console -> Monetize -> Products -> **Subscriptions**: create e.g.
-   `root_premium_monthly` with a price.
-2. Integrate the **Play Billing Library**: the "Unlock premium" button launches Google's
-   purchase sheet; on success, write an `entitlements` row (or verify server-side).
-3. Optional but recommended: wrap Billing with **RevenueCat** (free under ~$2.5k/mo) for
-   cross-device entitlements + a subscriber dashboard.
+## Selling premium (Play Billing) - client BUILT, Console setup TODO
+The app now integrates the **Play Billing Library** (`com.rootapp.billing.BillingManager`,
+wired into the You screen). When Google Play + a live product are reachable, the premium
+card shows a real **"Go Premium · <price>/mo"** button that launches Google's purchase
+sheet, acknowledges the purchase, and unlocks the app. Where Play/product isn't reachable
+(emulator, debug, or before the product is live) it falls back to the test unlock.
+
+To actually charge users, finish the Console side:
+1. Play Console -> Monetize -> Products -> **Subscriptions** -> create a subscription with
+   product id **`root_premium_monthly`** (must match `BillingManager.PRODUCT_ID`), add a
+   base plan + price, and **activate** it.
+2. Upload a signed build to a testing track and add **license testers**
+   (Console -> Setup -> License testing) so they can test purchases without being charged.
+3. Feature graphic is ready at `docs/store-assets/feature-graphic.png` (1024x500);
+   screenshots are in `docs/screenshots/`.
+4. Optional but recommended: wrap Billing with **RevenueCat** (free under ~$2.5k/mo) for
+   cross-device entitlements + a subscriber dashboard, and verify purchase tokens
+   server-side before granting (today the grant is client-side, MVP-level).
+
+Note: Play Billing only shows real prices/purchases in a build installed **from Play**
+(internal testing track), signed with the upload key, with the product active - not on a
+sideloaded APK or the emulator.
 
 ## 0. Prerequisites (one-time)
 - A Google Play Developer account: **$25 one-time fee**, at
