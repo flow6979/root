@@ -212,19 +212,25 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
         }
         Spacer(Modifier.height(16.dp))
 
-        Text("TODAY'S LOG", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = palette.dim)
+        Text("YOUR MEALS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = palette.dim)
         Spacer(Modifier.height(8.dp))
         Card(shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = palette.surface),
             modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
                 if (foods.isEmpty()) {
-                    Text("Nothing logged yet. Tap below to add your first meal.",
+                    Text("Nothing logged yet. Everything you log is kept, so you can look back.",
                         fontSize = 13.sp, color = palette.dim)
                 } else {
-                    foods.forEachIndexed { i, f ->
-                        FoodRow(f)
-                        if (i != foods.lastIndex) Spacer(Modifier.height(14.dp))
+                    // foods is newest-first; group into day sections (Today / Yesterday / date).
+                    foods.groupBy { dayLabel(it.timestamp) }.forEach { (day, items) ->
+                        Text(day, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = palette.dim)
+                        Spacer(Modifier.height(8.dp))
+                        items.forEach { f ->
+                            FoodRow(f)
+                            Spacer(Modifier.height(12.dp))
+                        }
+                        Spacer(Modifier.height(4.dp))
                     }
                 }
             }
@@ -267,6 +273,15 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
     }
 }
 
+private fun dayLabel(ts: Long): String {
+    val d = java.time.Instant.ofEpochMilli(ts).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+    return when (java.time.temporal.ChronoUnit.DAYS.between(d, java.time.LocalDate.now())) {
+        0L -> "Today"
+        1L -> "Yesterday"
+        else -> d.format(java.time.format.DateTimeFormatter.ofPattern("MMM d"))
+    }
+}
+
 @Composable
 private fun FoodRow(f: FoodEntry) {
     val palette = LocalRootPalette.current
@@ -276,7 +291,9 @@ private fun FoodRow(f: FoodEntry) {
         Column(Modifier.padding(start = 12.dp).weight(1f)) {
             Text(f.label.ifBlank { "Meal" }, fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold, color = palette.onSurface)
-            Text(if (f.healthy) "home / healthy" else "flagged", fontSize = 12.sp, color = palette.dim)
+            val time = java.time.Instant.ofEpochMilli(f.timestamp).atZone(java.time.ZoneId.systemDefault())
+                .toLocalTime().format(java.time.format.DateTimeFormatter.ofPattern("h:mm a"))
+            Text("$time · ${if (f.healthy) "healthy" else "junk"}", fontSize = 12.sp, color = palette.dim)
         }
         Text(if (f.healthy) "✓" else "⚠︎", color = if (f.healthy) palette.accent else palette.dim)
     }

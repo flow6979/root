@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
@@ -82,11 +83,20 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
         val navController = rememberNavController()
         val backStack by navController.currentBackStackEntryAsState()
         val currentRoute = backStack?.destination
+        val routeName = currentRoute?.route
+        val isNested = routeName == "reflection" || routeName == "voice"
 
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Root") },
+                    title = { Text(if (routeName == "reflection") "Reflection" else "Root") },
+                    navigationIcon = {
+                        if (isNested) {
+                            IconButton(onClick = { navController.popBackStack() }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            }
+                        }
+                    },
                     actions = {
                         IconButton(onClick = { minimalist = !minimalist; settings.minimalist = minimalist }) {
                             Icon(Icons.Outlined.Contrast, contentDescription = "Toggle minimalist mode")
