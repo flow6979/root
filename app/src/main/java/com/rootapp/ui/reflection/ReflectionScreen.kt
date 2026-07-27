@@ -26,9 +26,12 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -64,13 +67,21 @@ fun ReflectionScreen(
 ) {
     val context = LocalContext.current
     val store = remember { LocalStore(context) }
+    val supabase = remember { com.rootapp.data.SupabaseRepository(context) }
+    val bgScope = rememberCoroutineScope()
     val pastMemory = remember { store.recentMemory().joinToString("; ") }
+    var sessionLogged by remember { mutableStateOf(false) }
+    var msgCount by remember { mutableIntStateOf(0) }
     val vm: ReflectionViewModel = viewModel(
         factory = ReflectionVMFactory(
             llm = AppModule.llmClient,
             userName = userName,
             pastMemory = pastMemory,
-            onUserMessage = { store.remember(it) },
+            onUserMessage = {
+                store.remember(it)
+                msgCount++
+                if (!sessionLogged) { sessionLogged = true; bgScope.launch { supabase.pushReflection(msgCount) } }
+            },
         ),
     )
     val palette = LocalRootPalette.current
