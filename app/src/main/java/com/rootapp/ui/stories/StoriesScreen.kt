@@ -35,7 +35,10 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import com.rootapp.voice.CloudTts
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -98,12 +101,14 @@ private fun ToggleChip(label: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 private fun AiStories(premium: Boolean, tts: TextToSpeech) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val stories = remember { mutableStateListOf<StoryGenerator.Story>() }
     var index by remember { mutableIntStateOf(0) }
     var loading by remember { mutableStateOf(false) }
     var speaking by remember { mutableStateOf(false) }
+    var refreshKey by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(index) {
+    LaunchedEffect(index, refreshKey) {
         tts.stop(); speaking = false
         if (index < TOTAL && index >= stories.size) {
             loading = true
@@ -113,7 +118,14 @@ private fun AiStories(premium: Boolean, tts: TextToSpeech) {
     }
 
     Box(Modifier.fillMaxSize()) {
-        if (index >= TOTAL) { EndingState(onClose = { index = 0; stories.clear() }); return@Box }
+        if (index >= TOTAL) { EndingState(onClose = { index = 0; stories.clear(); refreshKey++ }); return@Box }
+
+        // refresh: fresh set of AI stories
+        Box(
+            Modifier.align(Alignment.TopEnd).padding(top = 22.dp, end = 16.dp)
+                .clip(RoundedCornerShape(100)).background(Color(0x33000000))
+                .clickable { index = 0; stories.clear(); refreshKey++ }.padding(horizontal = 12.dp, vertical = 6.dp),
+        ) { Text("↻ New", color = AMBER, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
 
         val transition = rememberInfiniteTransition(label = "moon")
         val scale by transition.animateFloat(1f, 1.05f, infiniteRepeatable(tween(3500), RepeatMode.Reverse), label = "s")
@@ -164,9 +176,13 @@ private fun AiStories(premium: Boolean, tts: TextToSpeech) {
                 if (!premium) {
                     Toast.makeText(context, "Story audio is a premium feature", Toast.LENGTH_SHORT).show()
                 } else if (speaking) {
-                    tts.stop(); speaking = false
+                    CloudTts.stop(); tts.stop(); speaking = false
                 } else {
-                    speakCalm(tts, s.body, "story-$index"); speaking = true
+                    speaking = true
+                    scope.launch {
+                        val ok = if (CloudTts.configured) CloudTts.play(context, s.body) { speaking = false } else false
+                        if (!ok) speakCalm(tts, s.body, "story-$index")
+                    }
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -181,17 +197,26 @@ private fun AiStories(premium: Boolean, tts: TextToSpeech) {
 @Composable
 private fun ClassicsSection(premium: Boolean, tts: TextToSpeech) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var selected by remember { mutableStateOf<Classics.Work?>(null) }
     var speaking by remember { mutableStateOf(false) }
     val w = selected
 
+    var shown by remember { mutableStateOf(Classics.random(6)) }
     if (w == null) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
-            Text("Read by the greats", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Text("Short excerpts from public-domain poets. Tap one to read or listen.",
-                color = Color(0xFFAEBCD4), fontSize = 13.sp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Read by the greats", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text("A fresh set of public-domain excerpts.", color = Color(0xFFAEBCD4), fontSize = 13.sp)
+                }
+                Box(
+                    Modifier.clip(RoundedCornerShape(100)).background(Color(0x22FFFFFF))
+                        .clickable { shown = Classics.random(6) }.padding(horizontal = 14.dp, vertical = 8.dp),
+                ) { Text("↻ Shuffle", color = AMBER, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
+            }
             Spacer(Modifier.height(16.dp))
-            Classics.works.forEach { work ->
+            shown.forEach { work ->
                 Box(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
                         .background(Color(0x1AFFFFFF)).clickable { selected = work }.padding(16.dp),
@@ -220,9 +245,14 @@ private fun ClassicsSection(premium: Boolean, tts: TextToSpeech) {
                 if (!premium) {
                     Toast.makeText(context, "Audio is a premium feature", Toast.LENGTH_SHORT).show()
                 } else if (speaking) {
-                    tts.stop(); speaking = false
+                    CloudTts.stop(); tts.stop(); speaking = false
                 } else {
-                    speakCalm(tts, "${w.title}, by ${w.author}. ${w.excerpt}", "classic-${w.title}"); speaking = true
+                    speaking = true
+                    val line = "${w.title}, by ${w.author}. ${w.excerpt}"
+                    scope.launch {
+                        val ok = if (CloudTts.configured) CloudTts.play(context, line) { speaking = false } else false
+                        if (!ok) speakCalm(tts, line, "classic-${w.title}")
+                    }
                 }
             }
         }

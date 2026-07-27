@@ -82,7 +82,7 @@ fun VoiceSessionScreen(userName: String, onExit: () -> Unit) {
     var transcribing by remember { mutableStateOf(false) }
     var lastSpoken by remember { mutableIntStateOf(0) }
     val tts = remember { TextToSpeech(context) {} }
-    DisposableEffect(Unit) { onDispose { tts.stop(); tts.shutdown(); recorder.stop() } }
+    DisposableEffect(Unit) { onDispose { tts.stop(); tts.shutdown(); recorder.stop(); com.rootapp.voice.CloudTts.stop() } }
 
     val recordPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) { if (recorder.start()) recording = true }
@@ -95,12 +95,16 @@ fun VoiceSessionScreen(userName: String, onExit: () -> Unit) {
             val last = state.visible.lastOrNull()
             if (last?.role == "assistant" && state.visible.size > lastSpoken) {
                 lastSpoken = state.visible.size
-                tts.language = Locale.getDefault(); tts.setPitch(0.85f); tts.setSpeechRate(0.85f)
-                tts.voices?.firstOrNull {
-                    it.locale.language == "en" && !it.isNetworkConnectionRequired &&
-                        it.quality >= android.speech.tts.Voice.QUALITY_HIGH
-                }?.let { tts.voice = it }
-                tts.speak(last.content, TextToSpeech.QUEUE_FLUSH, null, "v-${state.visible.size}")
+                // Prefer the natural cloud voice; fall back to system TTS.
+                val played = if (com.rootapp.voice.CloudTts.configured) com.rootapp.voice.CloudTts.play(context, last.content) else false
+                if (!played) {
+                    tts.language = Locale.getDefault(); tts.setPitch(0.85f); tts.setSpeechRate(0.85f)
+                    tts.voices?.firstOrNull {
+                        it.locale.language == "en" && !it.isNetworkConnectionRequired &&
+                            it.quality >= android.speech.tts.Voice.QUALITY_HIGH
+                    }?.let { tts.voice = it }
+                    tts.speak(last.content, TextToSpeech.QUEUE_FLUSH, null, "v-${state.visible.size}")
+                }
             }
         }
     }

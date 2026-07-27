@@ -18,6 +18,8 @@ val supabaseUrl: String = (localProps.getProperty("SUPABASE_URL")
     ?: System.getenv("SUPABASE_URL") ?: "").trim()
 val supabaseAnonKey: String = (localProps.getProperty("SUPABASE_ANON_KEY")
     ?: System.getenv("SUPABASE_ANON_KEY") ?: "").trim()
+val elevenKey: String = (localProps.getProperty("ELEVENLABS_API_KEY")
+    ?: System.getenv("ELEVENLABS_API_KEY") ?: "").trim()
 
 val releaseStoreFile: String? = localProps.getProperty("RELEASE_STORE_FILE")
 
@@ -40,12 +42,13 @@ android {
         applicationId = "com.rootapp"
         minSdk = 26
         targetSdk = 34
-        versionCode = 12
-        versionName = "0.2.1"
+        versionCode = 13
+        versionName = "0.2.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "GROQ_API_KEY", "\"$groqKey\"")
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
+        buildConfigField("String", "ELEVENLABS_API_KEY", "\"$elevenKey\"")
     }
 
     buildTypes {

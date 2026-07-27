@@ -42,6 +42,11 @@ class LocalStore(context: Context) {
         prefs.edit().putString(FOODS, encode(list, FoodEntry.serializer())).apply()
     }
 
+    fun removeFood(timestamp: Long) {
+        val list = foods().filterNot { it.timestamp == timestamp }
+        prefs.edit().putString(FOODS, encode(list, FoodEntry.serializer())).apply()
+    }
+
     // ---- reflection memory (what the friend remembers across sessions) ----
     fun memory(): List<String> {
         val s = prefs.getString(MEMORY, null)

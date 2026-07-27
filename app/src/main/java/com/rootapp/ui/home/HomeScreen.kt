@@ -63,6 +63,19 @@ fun HomeScreen(
             else -> "Winding down. How do you feel?"
         }
     }
+    // Wellbeing score from all signals we have. Screen time read once (needs Usage access).
+    val screenScore = remember {
+        if (com.rootapp.shield.ShieldPermissions.hasUsageAccess(context)) {
+            com.rootapp.data.Scores.screen(
+                com.rootapp.shield.UsageStatsReader.dailyAverageMinutes(com.rootapp.shield.UsageStatsReader.lastSevenDays(context)),
+            )
+        } else null
+    }
+    // Depends on selectedMood so it recomputes right after a check-in.
+    val moodScore = run { selectedMood; com.rootapp.data.Scores.mood(store.moods().takeLast(7).map { it.mood }) }
+    val foods = store.foods()
+    val eatingScore = com.rootapp.data.Scores.eating(foods.count { it.healthy }, foods.count { !it.healthy })
+    val wellbeing = com.rootapp.data.Scores.overall(listOfNotNull(moodScore, eatingScore, screenScore))
 
     Column(
         modifier = modifier
@@ -81,7 +94,30 @@ fun HomeScreen(
             fontSize = 13.sp,
             color = palette.dim,
         )
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(16.dp))
+
+        // ---- wellbeing score ----
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = palette.surface),
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Wellbeing score", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
+                    Text(
+                        if (wellbeing == null) "Check in and log to build your score"
+                        else com.rootapp.data.Scores.label(wellbeing) + " · from mood, meals" + if (screenScore != null) ", screen time" else "",
+                        fontSize = 12.sp, color = palette.dim,
+                    )
+                }
+                Text(wellbeing?.let { "$it" } ?: "—", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = palette.accent)
+            }
+        }
+        Spacer(Modifier.height(14.dp))
 
         Card(
             modifier = Modifier.fillMaxWidth(),

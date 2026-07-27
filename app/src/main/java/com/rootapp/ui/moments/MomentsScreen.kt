@@ -17,6 +17,7 @@ import android.speech.RecognizerIntent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -212,6 +213,63 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
         }
         Spacer(Modifier.height(16.dp))
 
+        // ---- eating score ----
+        val healthyCount = foods.count { it.healthy }
+        val junkCount = foods.count { !it.healthy }
+        val eatingScore = com.rootapp.data.Scores.eating(healthyCount, junkCount)
+        var showDetails by remember { mutableStateOf(false) }
+        var details by remember { mutableStateOf<String?>(null) }
+        var loadingDetails by remember { mutableStateOf(false) }
+        Card(shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = palette.surface),
+            modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Eating score", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
+                        Text(
+                            if (eatingScore == null) "Log meals to see your score"
+                            else "${com.rootapp.data.Scores.label(eatingScore)} · $healthyCount healthy, $junkCount junk",
+                            fontSize = 12.sp, color = palette.dim,
+                        )
+                    }
+                    Text(eatingScore?.let { "$it" } ?: "—", fontSize = 30.sp,
+                        fontWeight = FontWeight.Bold, color = palette.accent)
+                }
+                if (eatingScore != null) {
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = {
+                            showDetails = true; loadingDetails = true; details = null
+                            scope.launch {
+                                val data = "Meals logged: " + foods.joinToString { "${it.label} (${if (it.healthy) "healthy" else "junk"})" }
+                                details = com.rootapp.ai.InsightAnalyzer.analyze(
+                                    com.rootapp.di.AppModule.llmClient,
+                                    "Eating score of $eatingScore/100. Give each food a rough healthiness weight and explain the score",
+                                    data,
+                                )
+                                loadingDetails = false
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("How is this calculated?") }
+                }
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+
+        if (showDetails) {
+            AlertDialog(
+                onDismissRequest = { showDetails = false },
+                confirmButton = { TextButton(onClick = { showDetails = false }) { Text("Close") } },
+                title = { Text("Your eating score") },
+                text = {
+                    if (loadingDetails) Text("Working it out…")
+                    else Text(details ?: "Couldn't load details.")
+                },
+            )
+        }
+
         Text("YOUR MEALS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = palette.dim)
         Spacer(Modifier.height(8.dp))
         Card(shape = RoundedCornerShape(16.dp),
@@ -227,7 +285,7 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
                         Text(day, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = palette.dim)
                         Spacer(Modifier.height(8.dp))
                         items.forEach { f ->
-                            FoodRow(f)
+                            FoodRow(f, onDelete = { store.removeFood(f.timestamp); refreshFoods() })
                             Spacer(Modifier.height(12.dp))
                         }
                         Spacer(Modifier.height(4.dp))
@@ -283,11 +341,10 @@ private fun dayLabel(ts: Long): String {
 }
 
 @Composable
-private fun FoodRow(f: FoodEntry) {
+private fun FoodRow(f: FoodEntry, onDelete: () -> Unit) {
     val palette = LocalRootPalette.current
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(if (f.healthy) "🥗" else "🍔", fontSize = 20.sp)
-        Spacer(Modifier.height(0.dp))
         Column(Modifier.padding(start = 12.dp).weight(1f)) {
             Text(f.label.ifBlank { "Meal" }, fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold, color = palette.onSurface)
@@ -295,7 +352,8 @@ private fun FoodRow(f: FoodEntry) {
                 .toLocalTime().format(java.time.format.DateTimeFormatter.ofPattern("h:mm a"))
             Text("$time · ${if (f.healthy) "healthy" else "junk"}", fontSize = 12.sp, color = palette.dim)
         }
-        Text(if (f.healthy) "✓" else "⚠︎", color = if (f.healthy) palette.accent else palette.dim)
+        Text("✕", color = palette.dim, fontSize = 16.sp,
+            modifier = Modifier.clickable { onDelete() }.padding(8.dp))
     }
 }
 

@@ -32,5 +32,32 @@ object Classics {
             "If", "Rudyard Kipling", "Poem",
             "If you can keep your head when all about you\nare losing theirs and blaming it on you,\nyours is the Earth and everything that's in it.",
         ),
+        Work(
+            "Ozymandias", "Percy Bysshe Shelley", "Poem",
+            "I met a traveller from an antique land\nwho said: two vast and trunkless legs of stone\nstand in the desert.",
+        ),
+        Work(
+            "She Walks in Beauty", "Lord Byron", "Poem",
+            "She walks in beauty, like the night\nof cloudless climes and starry skies.",
+        ),
+        Work(
+            "Invictus", "William Ernest Henley", "Poem",
+            "I am the master of my fate,\nI am the captain of my soul.",
+        ),
+        Work(
+            "A Psalm of Life", "Henry Wadsworth Longfellow", "Poem",
+            "Life is real! Life is earnest!\nAnd the grave is not its goal.",
+        ),
+        Work(
+            "Fire and Ice", "Robert Frost", "Poem",
+            "Some say the world will end in fire,\nsome say in ice.",
+        ),
+        Work(
+            "Ode on a Grecian Urn", "John Keats", "Poem",
+            "Beauty is truth, truth beauty, that is all\nye know on earth, and all ye need to know.",
+        ),
     )
+
+    /** A fresh random selection each call. */
+    fun random(count: Int = 6): List<Work> = works.shuffled().take(count)
 }
