@@ -27,13 +27,17 @@ config, honest Data Safety form). Public MVP is ~4-8 weeks: auth + persistence (
 route AI via a backend (hide key + RAG), Moments tab, Play Billing/premium, Stories content
 pipeline, onboarding polish, multi-device testing. See ANALYTICS.md for owner metrics.
 
+- Groq AI: LIVE + verified on emulator.
+- Supabase: LIVE - anonymous auth + RLS cloud sync of mood/food, verified end-to-end.
+
 ## Next up
-- Set a real GROQ_API_KEY in local.properties to exit offline demo mode.
-- Auth + persistence (Supabase): accounts, streaks, mood/logs, RAG memory.
-- Build Moments (geofence + food log) and the You/settings screen.
-- Premium + Play Billing.
-- Analytics instrumentation (PostHog + Crashlytics) - see docs/ANALYTICS.md.
+- Sync remaining data (reflections metadata, interrupt stats) + two-way sync/restore on new device.
+- RAG memory for the friend (embed reflections -> pgvector, retrieve as context).
+- Premium + Play Billing; Strict Mode enforcement.
+- Geofencing + Health Connect for Moments.
+- Analytics live (PostHog + Crashlytics) - see docs/ANALYTICS.md.
 - Store assets (icon, listing, privacy policy) + release signing + internal-testing upload.
+- Route AI + writes via a backend so the anon key/Groq key aren't shipped in the app.
 
 ## Next (in order)
 1. **Tech stack + hosting decisions** (in progress). Record picks in DECISIONS "Tech".

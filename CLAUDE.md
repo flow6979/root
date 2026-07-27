@@ -83,8 +83,10 @@ Vertical slice BUILDS and is TESTED on this machine.
 - Stories: immersive finite-scroll screen with ending state, verified on emulator.
 - Moments: geofence card + food logging (persisted), verified on emulator.
 - Persistence: local-first LocalStore (mood, streak, food, interrupt stats) -
-  verified to survive force-stop/restart. Cloud auth/sync via Supabase is a handoff
-  (needs a free project - see docs/SUPABASE.md).
+  verified to survive force-stop/restart.
+- Cloud: Supabase LIVE. Anonymous auth on start + RLS-scoped cloud sync of mood/food
+  (SupabaseRepository, OkHttp). Verified end-to-end on emulator (row landed in cloud).
+  AI (Groq) LIVE and verified. Keys in gitignored local.properties.
 - Analytics: swappable Track/Analytics layer (Logcat now, PostHog later), content-safe;
   key events instrumented. See docs/ANALYTICS.md.
 - Onboarding: first-run permission flow (usage/overlay/notifications), persists via SettingsStore.
