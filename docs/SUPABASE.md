@@ -11,17 +11,50 @@ needs a free Supabase project that only you can create (like the Groq key).
 - **pgvector** - embeddings of the user's own reflections for RAG memory.
 - **Storage** - food photos later.
 
-## Your one-time setup (~5 min)
-1. Go to https://supabase.com -> sign in -> New project (free tier). Pick a region near you.
-2. Project Settings -> API. Copy:
-   - **Project URL** (e.g. https://abcd.supabase.co)
-   - **anon public key**
-3. Paste into `local.properties` (gitignored):
-   ```properties
-   SUPABASE_URL=https://abcd.supabase.co
-   SUPABASE_ANON_KEY=eyJ...
-   ```
-4. Tell me "supabase ready" and I'll wire the client + auth + sync.
+## Status
+- Project created; URL + anon key are in local.properties. Connectivity verified (auth health 200).
+- TWO dashboard actions remain (I can't do these with the anon key) before I can wire + test:
+
+### Action 1 - enable anonymous sign-ins (1 toggle)
+Supabase Dashboard -> Authentication -> Sign In / Providers -> find **Anonymous Sign-Ins**
+-> enable -> Save. (Gives zero-friction accounts; users don't type an email.)
+
+### Action 2 - create the tables + RLS (paste this in the SQL Editor -> Run)
+```sql
+create extension if not exists vector;
+
+create table if not exists public.moods (
+  id bigint generated always as identity primary key,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  epoch_day bigint not null, mood int not null,
+  created_at timestamptz not null default now());
+
+create table if not exists public.foods (
+  id bigint generated always as identity primary key,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  label text, healthy boolean not null default true,
+  created_at timestamptz not null default now());
+
+create table if not exists public.reflections (
+  id bigint generated always as identity primary key,
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  message_count int not null default 0,
+  created_at timestamptz not null default now());
+
+alter table public.moods enable row level security;
+alter table public.foods enable row level security;
+alter table public.reflections enable row level security;
+
+create policy "own moods" on public.moods for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own foods" on public.foods for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "own reflections" on public.reflections for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+```
+
+After both actions, tell me "supabase configured" and I'll wire the client + anonymous
+auth + local->cloud sync and verify it end to end.
 
 ## Integration plan (what I'll build once keys exist)
 - Add `supabase-kt` (auth + postgrest + realtime) deps; read URL/key from BuildConfig.
