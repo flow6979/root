@@ -98,7 +98,59 @@ class SupabaseRepository(context: Context) {
     }
 
     // ---- auth ----
-    private data class Tokens(val access: String, val refresh: String, val userId: String)
+    val loggedIn: Boolean get() = prefs.getString(REFRESH, null) != null
+    val email: String? get() = prefs.getString(EMAIL, null)
+    val isGuest: Boolean get() = prefs.getString(KIND, null) == "anon"
+
+    sealed class AuthResult {
+        object Success : AuthResult()
+        object NeedsConfirmation : AuthResult()
+        data class Error(val message: String) : AuthResult()
+    }
+
+    suspend fun signIn(emailAddr: String, password: String): AuthResult = withContext(Dispatchers.IO) {
+        if (!configured) return@withContext AuthResult.Error("Not configured")
+        val body = buildJsonObject { put("email", emailAddr.trim()); put("password", password) }
+        val req = Request.Builder()
+            .url("$baseUrl/auth/v1/token?grant_type=password")
+            .addHeader("apikey", anonKey)
+            .post(json.encodeToString(JsonObject.serializer(), body).toRequestBody(jsonMedia))
+            .build()
+        toResult(authCallResult(req, "sign-in"), "email")
+    }
+
+    suspend fun signUp(emailAddr: String, password: String): AuthResult = withContext(Dispatchers.IO) {
+        if (!configured) return@withContext AuthResult.Error("Not configured")
+        val body = buildJsonObject { put("email", emailAddr.trim()); put("password", password) }
+        val req = Request.Builder()
+            .url("$baseUrl/auth/v1/signup")
+            .addHeader("apikey", anonKey)
+            .post(json.encodeToString(JsonObject.serializer(), body).toRequestBody(jsonMedia))
+            .build()
+        toResult(authCallResult(req, "sign-up"), "email")
+    }
+
+    suspend fun guestSignIn(): Boolean = withContext(Dispatchers.IO) {
+        val t = signInAnonymously() ?: return@withContext false
+        store(t, "anon"); true
+    }
+
+    fun signOut() { prefs.edit().clear().apply() }
+
+    private fun toResult(call: AuthCall, kind: String): AuthResult = when (call) {
+        is AuthCall.Ok -> { store(call.tokens, kind); AuthResult.Success }
+        is AuthCall.Fail -> if (call.needsConfirmation) AuthResult.NeedsConfirmation else AuthResult.Error(call.message)
+    }
+
+    private fun store(t: Tokens, kind: String) {
+        val e = prefs.edit()
+        e.putString(ACCESS, t.access); e.putString(REFRESH, t.refresh)
+        e.putString(USER_ID, t.userId); e.putString(KIND, kind)
+        if (t.email.isNullOrBlank()) e.remove(EMAIL) else e.putString(EMAIL, t.email)
+        e.apply()
+    }
+
+    private data class Tokens(val access: String, val refresh: String, val userId: String, val email: String? = null)
 
     private fun signInAnonymously(): Tokens? {
         val req = Request.Builder()
@@ -106,7 +158,7 @@ class SupabaseRepository(context: Context) {
             .addHeader("apikey", anonKey)
             .post("{}".toRequestBody(jsonMedia))
             .build()
-        return authCall(req, "anon sign-in")
+        return (authCallResult(req, "anon sign-in") as? AuthCall.Ok)?.tokens
     }
 
     private fun refresh(refreshToken: String): Tokens? {
@@ -116,24 +168,45 @@ class SupabaseRepository(context: Context) {
             .addHeader("apikey", anonKey)
             .post(json.encodeToString(JsonObject.serializer(), body).toRequestBody(jsonMedia))
             .build()
-        return authCall(req, "refresh")
+        return (authCallResult(req, "refresh") as? AuthCall.Ok)?.tokens
     }
 
-    private fun authCall(req: Request, label: String): Tokens? = runCatching {
+    private sealed class AuthCall {
+        data class Ok(val tokens: Tokens) : AuthCall()
+        data class Fail(val message: String, val needsConfirmation: Boolean = false) : AuthCall()
+    }
+
+    private fun authCallResult(req: Request, label: String): AuthCall = runCatching {
         http.newCall(req).execute().use { r ->
             val text = r.body?.string().orEmpty()
-            if (!r.isSuccessful) { Log.w("Supabase", "$label -> ${r.code}: ${text.take(160)}"); return null }
-            val obj = json.parseToJsonElement(text).jsonObject
-            val access = obj["access_token"]?.jsonPrimitive?.content ?: return null
-            val refresh = obj["refresh_token"]?.jsonPrimitive?.content ?: ""
-            val uid = obj["user"]?.jsonObject?.get("id")?.jsonPrimitive?.content ?: ""
-            Tokens(access, refresh, uid)
+            val obj = runCatching { json.parseToJsonElement(text).jsonObject }.getOrNull()
+            if (r.isSuccessful) {
+                val access = obj?.get("access_token")?.jsonPrimitive?.content
+                if (access != null) {
+                    val refresh = obj["refresh_token"]?.jsonPrimitive?.content ?: ""
+                    val user = obj["user"]?.jsonObject
+                    val uid = user?.get("id")?.jsonPrimitive?.content ?: ""
+                    val em = user?.get("email")?.jsonPrimitive?.content
+                    AuthCall.Ok(Tokens(access, refresh, uid, em?.ifBlank { null }))
+                } else {
+                    AuthCall.Fail("Check your email to confirm your account.", needsConfirmation = true)
+                }
+            } else {
+                val msg = obj?.get("msg")?.jsonPrimitive?.content
+                    ?: obj?.get("error_description")?.jsonPrimitive?.content
+                    ?: obj?.get("error")?.jsonPrimitive?.content
+                    ?: "Something went wrong (${r.code})"
+                Log.w("Supabase", "$label -> ${r.code}: ${text.take(160)}")
+                AuthCall.Fail(msg)
+            }
         }
-    }.getOrElse { Log.w("Supabase", "$label failed: ${it.message}"); null }
+    }.getOrElse { Log.w("Supabase", "$label failed: ${it.message}"); AuthCall.Fail(it.message ?: "Network error") }
 
     companion object {
         private const val ACCESS = "access_token"
         private const val REFRESH = "refresh_token"
         private const val USER_ID = "user_id"
+        private const val EMAIL = "email"
+        private const val KIND = "kind"
     }
 }

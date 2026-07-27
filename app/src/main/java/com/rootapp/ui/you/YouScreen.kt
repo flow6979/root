@@ -45,11 +45,14 @@ fun YouScreen(
     onMinimalistChange: (Boolean) -> Unit,
     personality: String,
     onPersonalityChange: (String) -> Unit,
+    onLogout: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalRootPalette.current
     val context = LocalContext.current
     val settings = remember { com.rootapp.data.SettingsStore(context) }
+    val repo = remember { com.rootapp.data.SupabaseRepository(context) }
+    val accountLabel = repo.email ?: if (repo.isGuest) "Guest" else "Signed in"
     var premium by remember { mutableStateOf(settings.premium) }
     var refresh by remember { mutableIntStateOf(0) }
     LifecycleResumeEffect(Unit) { refresh++; onPauseOrDispose { } }
@@ -61,7 +64,7 @@ fun YouScreen(
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         Text("You", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
-        Text("$userName · ${if (premium) "Premium" else "Free"} plan", fontSize = 12.sp, color = palette.dim)
+        Text("$accountLabel · ${if (premium) "Premium" else "Free"} plan", fontSize = 12.sp, color = palette.dim)
         Spacer(Modifier.height(16.dp))
 
         // Premium
@@ -146,7 +149,21 @@ fun YouScreen(
         }
         Spacer(Modifier.height(16.dp))
 
-        Text("Root v0.1.0 · made with care", fontSize = 11.sp, color = palette.dim,
+        Section("ACCOUNT")
+        Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = palette.surface)) {
+            Column(Modifier.padding(16.dp)) {
+                RowText("Signed in as", accountLabel)
+                Spacer(Modifier.height(14.dp))
+                androidx.compose.material3.OutlinedButton(
+                    onClick = onLogout,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Log out", fontWeight = FontWeight.SemiBold, color = palette.accent) }
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+
+        Text("Root v0.1 · made with care", fontSize = 11.sp, color = palette.dim,
             modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(24.dp))
     }

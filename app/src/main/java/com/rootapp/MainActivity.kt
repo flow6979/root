@@ -12,12 +12,13 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Anonymous sign-in + honour any server-granted premium (auto-expires per premium_until).
+        // Only refresh + check premium if already signed in (don't auto-create a session;
+        // the login screen handles first sign-in / guest).
         lifecycleScope.launch {
             val repo = SupabaseRepository(applicationContext)
-            repo.ensureSession()
-            if (repo.isPremiumFromServer()) {
-                SettingsStore(applicationContext).premium = true
+            if (repo.loggedIn) {
+                repo.ensureSession()
+                if (repo.isPremiumFromServer()) SettingsStore(applicationContext).premium = true
             }
         }
         setContent {

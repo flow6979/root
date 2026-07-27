@@ -61,15 +61,21 @@ private enum class Tab(val route: String, val label: String, val icon: ImageVect
 fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
     val context = LocalContext.current
     val settings = remember { SettingsStore(context) }
+    val repo = remember { com.rootapp.data.SupabaseRepository(context) }
     val timeOfDay = remember(currentHour) { Sky.fromHour(currentHour) }
     var minimalist by remember { mutableStateOf(settings.minimalist) }
     var personality by remember { mutableStateOf(settings.personality) }
     var onboarded by remember { mutableStateOf(settings.onboarded) }
+    var authed by remember { mutableStateOf(repo.loggedIn) }
     val userName = remember { settings.userName }
 
     RootTheme(timeOfDay = timeOfDay, minimalist = minimalist) {
         if (!onboarded) {
             OnboardingScreen(onDone = { settings.onboarded = true; onboarded = true })
+            return@RootTheme
+        }
+        if (!authed) {
+            com.rootapp.ui.auth.AuthScreen(onAuthed = { authed = true })
             return@RootTheme
         }
         val palette = LocalRootPalette.current
@@ -132,6 +138,7 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
                             onMinimalistChange = { minimalist = it; settings.minimalist = it },
                             personality = personality,
                             onPersonalityChange = { personality = it; settings.personality = it },
+                            onLogout = { repo.signOut(); authed = false },
                         )
                     }
                 }
