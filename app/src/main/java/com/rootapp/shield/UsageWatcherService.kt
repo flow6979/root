@@ -17,6 +17,9 @@ import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.rootapp.MainActivity
+import com.rootapp.analytics.Events
+import com.rootapp.analytics.Track
+import com.rootapp.data.LocalStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -67,12 +70,18 @@ class UsageWatcherService : Service() {
             val monitoredSet = monitored.get()
             if (InterruptPolicy.shouldInterrupt(current, monitoredSet, now, lastShownAt)) {
                 lastShownAt = now
-                val label = current!!.substringAfterLast('.')
+                val label = current!!.substringAfterLast('.').replaceFirstChar { it.uppercase() }
+                LocalStore(this).incInterruptShown()
+                Track.event(Events.INTERRUPT_SHOWN)
                 main.post {
                     overlay.show(
                         appLabel = label,
-                        onPause = { bringRootToFront() },
-                        onProceed = { /* dismissed; cooldown prevents nagging */ },
+                        onPause = {
+                            LocalStore(this).incInterruptPaused()
+                            Track.event(Events.INTERRUPT_PAUSED)
+                            bringRootToFront()
+                        },
+                        onProceed = { Track.event(Events.INTERRUPT_OPENED_ANYWAY) },
                     )
                 }
             }

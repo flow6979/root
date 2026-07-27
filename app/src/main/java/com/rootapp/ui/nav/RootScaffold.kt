@@ -37,6 +37,7 @@ import androidx.navigation.compose.rememberNavController
 import com.rootapp.ui.common.PlaceholderScreen
 import com.rootapp.ui.home.HomeScreen
 import com.rootapp.ui.reflection.ReflectionScreen
+import com.rootapp.ui.moments.MomentsScreen
 import com.rootapp.ui.shield.ShieldScreen
 import com.rootapp.ui.stories.StoriesScreen
 import com.rootapp.ui.theme.LocalRootPalette
@@ -110,9 +111,7 @@ fun RootScaffold(userName: String = "Vaibhav", currentHour: Int = Calendar.getIn
                     }
                     composable("reflection") { ReflectionScreen(userName = userName) }
                     composable(Tab.SHIELD.route) { ShieldScreen() }
-                    composable(Tab.MOMENTS.route) {
-                        PlaceholderScreen("Moments", "Geofence nudges and food/sleep logging.")
-                    }
+                    composable(Tab.MOMENTS.route) { MomentsScreen() }
                     composable(Tab.STORIES.route) { StoriesScreen() }
                     composable(Tab.YOU.route) {
                         PlaceholderScreen("You", "Settings, appearance, personality, and premium.")

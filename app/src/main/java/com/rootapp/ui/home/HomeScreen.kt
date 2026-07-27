@@ -13,14 +13,26 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
+import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rootapp.analytics.Events
+import com.rootapp.analytics.Track
+import com.rootapp.data.LocalStore
 import com.rootapp.ui.common.Orb
 import com.rootapp.ui.theme.LocalRootPalette
+import java.time.LocalDate
 
 @Composable
 fun HomeScreen(
@@ -30,6 +42,12 @@ fun HomeScreen(
 ) {
     val palette = LocalRootPalette.current
     val greetingName = userName.ifBlank { "there" }
+    val context = LocalContext.current
+    val store = remember { LocalStore(context) }
+    val today = remember { LocalDate.now().toEpochDay() }
+    var streak by remember { mutableIntStateOf(store.streak()) }
+    var selectedMood by remember { mutableStateOf(store.todaysMood(today)) }
+    val streakText = if (streak > 0) "You're $streak ${if (streak == 1) "day" else "days"} in." else "Let's begin today."
 
     Column(
         modifier = modifier
@@ -44,7 +62,7 @@ fun HomeScreen(
             color = palette.onSurface,
         )
         Text(
-            text = "Good to see you. You're 4 days in.",
+            text = "Good to see you. $streakText",
             fontSize = 13.sp,
             color = palette.dim,
         )
@@ -86,8 +104,19 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceAround,
                 ) {
-                    listOf("😔", "😐", "🙂", "😌", "⚡️")
-                        .forEach { Text(it, fontSize = 26.sp) }
+                    listOf("😔", "😐", "🙂", "😌", "⚡️").forEachIndexed { i, emoji ->
+                        Text(
+                            text = emoji,
+                            fontSize = 26.sp,
+                            modifier = Modifier
+                                .alpha(if (selectedMood == null || selectedMood == i) 1f else 0.35f)
+                                .clickable {
+                                    streak = store.addMood(i, today, System.currentTimeMillis())
+                                    selectedMood = i
+                                    Track.event(Events.MOOD_LOGGED)
+                                },
+                        )
+                    }
                 }
             }
         }

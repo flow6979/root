@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.rootapp.ai.ChatMessage
 import com.rootapp.ai.LlmClient
 import com.rootapp.ai.Prompts
+import com.rootapp.analytics.Events
+import com.rootapp.analytics.Track
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,6 +41,7 @@ class ReflectionViewModel(
         if (text.isEmpty() || _state.value.sending) return
 
         transcript += ChatMessage.user(text)
+        Track.event(Events.REFLECTION_MESSAGE_SENT)
         _state.value = _state.value.copy(
             visible = visibleFrom(transcript),
             sending = true,

@@ -81,6 +81,12 @@ Vertical slice BUILDS and is TESTED on this machine.
   (UsageStatsManager foreground poller + SYSTEM_ALERT_WINDOW overlay + FGS), verified
   on emulator. See com.rootapp.shield.*.
 - Stories: immersive finite-scroll screen with ending state, verified on emulator.
-- Moments / You are still placeholders.
+- Moments: geofence card + food logging (persisted), verified on emulator.
+- Persistence: local-first LocalStore (mood, streak, food, interrupt stats) -
+  verified to survive force-stop/restart. Cloud auth/sync via Supabase is a handoff
+  (needs a free project - see docs/SUPABASE.md).
+- Analytics: swappable Track/Analytics layer (Logcat now, PostHog later), content-safe;
+  key events instrumented. See docs/ANALYTICS.md.
+- You tab is still a placeholder.
 Next: push to GitHub (docs/GITHUB.md), device-test, then build the Shield interrupt
 engine (validate Play Store policy first - see docs/PLAY_STORE.md + ROADMAP risks).
