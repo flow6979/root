@@ -26,6 +26,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -110,19 +111,34 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
         if (granted) { if (voiceRecorder.start()) foodRecording = true }
         else Toast.makeText(context, "Microphone permission needed", Toast.LENGTH_SHORT).show()
     }
+    fun stopFoodAndSave() {
+        if (!foodRecording) return
+        foodRecording = false
+        val f = voiceRecorder.stop() ?: return
+        foodSaving = true
+        scope.launch {
+            val text = com.rootapp.ai.GroqTranscriber.transcribe(f)
+            if (text.isNullOrBlank()) {
+                foodSaving = false
+                Toast.makeText(context, "Didn't catch that.", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            // Pull out just the food (e.g. "I ate pizza today" -> pizza, unhealthy).
+            val m = com.rootapp.ai.FoodExtractor.extract(com.rootapp.di.AppModule.llmClient, text)
+            foodSaving = false
+            if (m != null) {
+                store.addFood(m.food, m.healthy, System.currentTimeMillis())
+                refreshFoods()
+                supabase.pushFood(m.food, m.healthy)
+                Track.event(Events.FOOD_LOGGED, mapOf("healthy" to m.healthy, "source" to "voice"))
+            } else {
+                logSpoken(text) // fallback: store what we heard
+            }
+        }
+    }
     val logByVoice = {
         if (foodRecording) {
-            foodRecording = false
-            val f = voiceRecorder.stop()
-            if (f != null) {
-                foodSaving = true
-                scope.launch {
-                    val text = com.rootapp.ai.GroqTranscriber.transcribe(f)
-                    foodSaving = false
-                    if (!text.isNullOrBlank()) logSpoken(text)
-                    else Toast.makeText(context, "Didn't catch that.", Toast.LENGTH_SHORT).show()
-                }
-            }
+            stopFoodAndSave()
         } else {
             val hasPerm = ContextCompat.checkSelfPermission(
                 context, Manifest.permission.RECORD_AUDIO,
@@ -131,6 +147,19 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
             else recordPermFood.launch(Manifest.permission.RECORD_AUDIO)
         }
         Unit
+    }
+    LaunchedEffect(foodRecording) {
+        if (foodRecording) {
+            var spoke = false; var silenceMs = 0L; var totalMs = 0L
+            while (foodRecording) {
+                kotlinx.coroutines.delay(200)
+                totalMs += 200
+                val amp = voiceRecorder.amplitude()
+                if (amp > 1800) { spoke = true; silenceMs = 0 } else if (spoke) silenceMs += 200
+                if (spoke && silenceMs >= 1400) { stopFoodAndSave(); break }
+                if (totalMs >= 20000) { stopFoodAndSave(); break }
+            }
+        }
     }
 
     Column(

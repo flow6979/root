@@ -13,6 +13,9 @@ class VoiceRecorder(private val context: Context) {
 
     val isRecording: Boolean get() = recorder != null
 
+    /** Peak amplitude since last call (0..32767); used for silence detection. */
+    fun amplitude(): Int = runCatching { recorder?.maxAmplitude ?: 0 }.getOrDefault(0)
+
     fun start(): Boolean {
         if (recorder != null) return false
         val out = File(context.cacheDir, "voice_${System.nanoTime()}.m4a")

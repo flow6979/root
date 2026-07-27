@@ -127,19 +127,23 @@ fun ReflectionScreen(
         if (granted) { if (recorder.start()) recording = true }
         else Toast.makeText(context, "Microphone permission needed", Toast.LENGTH_SHORT).show()
     }
+    fun stopAndTranscribe() {
+        if (!recording) return
+        recording = false
+        val f = recorder.stop()
+        if (f != null) {
+            transcribing = true
+            bgScope.launch {
+                val text = com.rootapp.ai.GroqTranscriber.transcribe(f)
+                transcribing = false
+                if (!text.isNullOrBlank()) { voiceMode = true; vm.send(text) }
+                else Toast.makeText(context, "Didn't catch that. Try again.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
     val toggleVoice = {
         if (recording) {
-            recording = false
-            val f = recorder.stop()
-            if (f != null) {
-                transcribing = true
-                bgScope.launch {
-                    val text = com.rootapp.ai.GroqTranscriber.transcribe(f)
-                    transcribing = false
-                    if (!text.isNullOrBlank()) { voiceMode = true; vm.send(text) }
-                    else Toast.makeText(context, "Didn't catch that. Try again.", Toast.LENGTH_SHORT).show()
-                }
-            }
+            stopAndTranscribe()
         } else {
             val hasPerm = androidx.core.content.ContextCompat.checkSelfPermission(
                 context, android.Manifest.permission.RECORD_AUDIO,
@@ -148,6 +152,22 @@ fun ReflectionScreen(
             else recordPerm.launch(android.Manifest.permission.RECORD_AUDIO)
         }
         Unit
+    }
+    // Auto-stop when the user goes quiet (no manual stop needed).
+    LaunchedEffect(recording) {
+        if (recording) {
+            var spoke = false
+            var silenceMs = 0L
+            var totalMs = 0L
+            while (recording) {
+                kotlinx.coroutines.delay(200)
+                totalMs += 200
+                val amp = recorder.amplitude()
+                if (amp > 1800) { spoke = true; silenceMs = 0 } else if (spoke) silenceMs += 200
+                if (spoke && silenceMs >= 1400) { stopAndTranscribe(); break }
+                if (totalMs >= 25000) { stopAndTranscribe(); break }
+            }
+        }
     }
     val palette = LocalRootPalette.current
     val state by vm.state.collectAsStateWithLifecycle()
@@ -167,6 +187,8 @@ fun ReflectionScreen(
             if (last?.role == "assistant" && state.visible.size > lastSpoken) {
                 lastSpoken = state.visible.size
                 tts.language = Locale.getDefault()
+                tts.setPitch(0.9f)        // calmer, softer
+                tts.setSpeechRate(0.9f)   // slower, unhurried
                 tts.speak(last.content, TextToSpeech.QUEUE_FLUSH, null, "root-${state.visible.size}")
             }
         }

@@ -44,14 +44,14 @@ fun paletteFor(t: TimeOfDay): RootPalette = when (t) {
         starsAlpha = 0.7f, isMoon = true, dark = true,
     )
     TimeOfDay.DUSK -> RootPalette(
-        bg1 = Color(0xFF3A335C), bg2 = Color(0xFFC9764A),
-        surface = Color(0xFFFFFFFF), onSurface = Color(0xFF231B2E), dim = Color(0xFF6E6478),
+        bg1 = Color(0xFFF4E4D6), bg2 = Color(0xFFEBD0BC),
+        surface = Color(0xFFFFFFFF), onSurface = Color(0xFF2E2333), dim = Color(0xFF7A6A5E),
         accent = Color(0xFFB5622F), accentSoft = Color(0x1FB5622F),
-        orb = Color(0xFFFFB877), orbGlow = Color(0xFFE88A3C),
-        starsAlpha = 0.15f, isMoon = false, dark = false,
+        orb = Color(0xFFFF9E5E), orbGlow = Color(0xFFE88A3C),
+        starsAlpha = 0f, isMoon = false, dark = false,
     )
     TimeOfDay.DAWN -> RootPalette(
-        bg1 = Color(0xFFAEBFDE), bg2 = Color(0xFFF3DED2),
+        bg1 = Color(0xFFCFDAEE), bg2 = Color(0xFFF3E2D6),
         surface = Color(0xFFFFFFFF), onSurface = Color(0xFF22283A), dim = Color(0xFF69708A),
         accent = Color(0xFF5A6FA8), accentSoft = Color(0x1F5A6FA8),
         orb = Color(0xFFFFE3B0), orbGlow = Color(0xFFF2C98A),
