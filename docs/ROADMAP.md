@@ -17,10 +17,23 @@
 - Toolchain + emulator set up (JDK17, Gradle 8.7, SDK 34, AVD root_pixel).
 - Slice verified: 15 unit tests + 2 Compose UI tests green; run live on emulator.
 
+- Pushed to GitHub: github.com/flow6979/root-app (private).
+- Shield reality-check done + engine BUILT & verified (poller + overlay + FGS).
+- Shield insights UI + immersive Stories screen BUILT & verified on emulator.
+
+## Distance to a real launch (honest)
+Internal-testing-ready in DAYS (needs: app icon, privacy policy URL, release signing
+config, honest Data Safety form). Public MVP is ~4-8 weeks: auth + persistence (Supabase),
+route AI via a backend (hide key + RAG), Moments tab, Play Billing/premium, Stories content
+pipeline, onboarding polish, multi-device testing. See ANALYTICS.md for owner metrics.
+
 ## Next up
-- Push to GitHub (needs `gh auth login` with GITHUB_TOKEN unset - personal account).
-- Play Store policy reality-check for the Shield app-blocking approach (before build).
 - Set a real GROQ_API_KEY in local.properties to exit offline demo mode.
+- Auth + persistence (Supabase): accounts, streaks, mood/logs, RAG memory.
+- Build Moments (geofence + food log) and the You/settings screen.
+- Premium + Play Billing.
+- Analytics instrumentation (PostHog + Crashlytics) - see docs/ANALYTICS.md.
+- Store assets (icon, listing, privacy policy) + release signing + internal-testing upload.
 
 ## Next (in order)
 1. **Tech stack + hosting decisions** (in progress). Record picks in DECISIONS "Tech".

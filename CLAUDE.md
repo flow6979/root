@@ -77,6 +77,10 @@ Vertical slice BUILDS and is TESTED on this machine.
 - Verified live on an AVD (root_pixel, API 34 arm64): Home, reflection chat loop,
   minimalist toggle, time-adaptive night theme all working.
 - Home + AI reflection session working (offline demo mode until a Groq key is set).
-- Shield / Moments / Stories / You are placeholders.
+- Shield: insights UI (charts + Root's read) + WORKING interrupt engine
+  (UsageStatsManager foreground poller + SYSTEM_ALERT_WINDOW overlay + FGS), verified
+  on emulator. See com.rootapp.shield.*.
+- Stories: immersive finite-scroll screen with ending state, verified on emulator.
+- Moments / You are still placeholders.
 Next: push to GitHub (docs/GITHUB.md), device-test, then build the Shield interrupt
 engine (validate Play Store policy first - see docs/PLAY_STORE.md + ROADMAP risks).
