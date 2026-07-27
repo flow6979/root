@@ -14,6 +14,10 @@ val localProps = Properties().apply {
 }
 val groqKey: String = (localProps.getProperty("GROQ_API_KEY")
     ?: System.getenv("GROQ_API_KEY") ?: "").trim()
+val supabaseUrl: String = (localProps.getProperty("SUPABASE_URL")
+    ?: System.getenv("SUPABASE_URL") ?: "").trim()
+val supabaseAnonKey: String = (localProps.getProperty("SUPABASE_ANON_KEY")
+    ?: System.getenv("SUPABASE_ANON_KEY") ?: "").trim()
 
 android {
     namespace = "com.rootapp"
@@ -27,6 +31,8 @@ android {
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "GROQ_API_KEY", "\"$groqKey\"")
+        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
     }
 
     buildTypes {

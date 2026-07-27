@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,13 +34,17 @@ import com.rootapp.analytics.Events
 import com.rootapp.analytics.Track
 import com.rootapp.data.FoodEntry
 import com.rootapp.data.LocalStore
+import com.rootapp.data.SupabaseRepository
 import com.rootapp.ui.theme.LocalRootPalette
+import kotlinx.coroutines.launch
 
 @Composable
 fun MomentsScreen(modifier: Modifier = Modifier) {
     val palette = LocalRootPalette.current
     val context = LocalContext.current
     val store = remember { LocalStore(context) }
+    val supabase = remember { SupabaseRepository(context) }
+    val scope = rememberCoroutineScope()
     var foods by remember { mutableStateOf(store.foods().reversed()) }
     var showDialog by remember { mutableStateOf(false) }
 
@@ -97,6 +102,7 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
                 store.addFood(label, healthy, System.currentTimeMillis())
                 foods = store.foods().reversed()
                 Track.event(Events.FOOD_LOGGED, mapOf("healthy" to healthy))
+                scope.launch { supabase.pushFood(label.ifBlank { "Meal" }, healthy) }
                 showDialog = false
             },
         )

@@ -27,11 +27,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.rememberCoroutineScope
 import com.rootapp.analytics.Events
 import com.rootapp.analytics.Track
 import com.rootapp.data.LocalStore
+import com.rootapp.data.SupabaseRepository
 import com.rootapp.ui.common.Orb
 import com.rootapp.ui.theme.LocalRootPalette
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 @Composable
@@ -44,6 +47,8 @@ fun HomeScreen(
     val greetingName = userName.ifBlank { "there" }
     val context = LocalContext.current
     val store = remember { LocalStore(context) }
+    val supabase = remember { SupabaseRepository(context) }
+    val scope = rememberCoroutineScope()
     val today = remember { LocalDate.now().toEpochDay() }
     var streak by remember { mutableIntStateOf(store.streak()) }
     var selectedMood by remember { mutableStateOf(store.todaysMood(today)) }
@@ -114,6 +119,7 @@ fun HomeScreen(
                                     streak = store.addMood(i, today, System.currentTimeMillis())
                                     selectedMood = i
                                     Track.event(Events.MOOD_LOGGED)
+                                    scope.launch { supabase.pushMood(today, i) }
                                 },
                         )
                     }
