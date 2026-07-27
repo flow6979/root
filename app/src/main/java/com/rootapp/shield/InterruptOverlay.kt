@@ -25,8 +25,8 @@ class InterruptOverlay(context: Context) {
     /** Convenience for the app-block case. strict=true removes the "open anyway" escape. */
     fun showForApp(appLabel: String, strict: Boolean = false, onPause: () -> Unit, onProceed: () -> Unit) =
         show(
-            "Hey — you opened $appLabel.",
-            if (strict) "Strict mode is on. Let's take this moment together." else "Want to sit with me for 60 seconds instead?",
+            "You opened $appLabel.",
+            if (strict) "Strict mode is on. Let's pause." else "Take a breath first?",
             onPause, onProceed, allowProceed = !strict,
         )
 

@@ -40,6 +40,7 @@ import com.rootapp.data.SettingsStore
 import com.rootapp.shield.InterruptOverlay
 import com.rootapp.shield.MonitoredApps
 import com.rootapp.shield.ShieldPermissions
+import com.rootapp.shield.UsageStatsReader
 import com.rootapp.shield.UsageWatcherService
 import com.rootapp.ui.theme.LocalRootPalette
 import com.rootapp.ui.theme.PremiumAccent
@@ -61,6 +62,12 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
     val hasOverlay = remember(permRefresh) { ShieldPermissions.hasOverlay(context) }
     val ready = hasUsage && hasOverlay
 
+    // real screen-time data (empty until Usage access is granted)
+    val days = remember(permRefresh, hasUsage) { if (hasUsage) UsageStatsReader.lastSevenDays(context) else emptyList() }
+    val topApps = remember(permRefresh, hasUsage) { if (hasUsage) UsageStatsReader.topApps(context) else emptyList() }
+    val dailyAvg = UsageStatsReader.fmt(UsageStatsReader.dailyAverageMinutes(days))
+    val aiRead = UsageStatsReader.read(days, topApps)
+
     val monitored = remember { MonitoredApps(context) }
     var igOn by remember { mutableStateOf(monitored.isMonitored("com.instagram.android")) }
     var ytOn by remember { mutableStateOf(monitored.isMonitored("com.google.android.youtube")) }
@@ -80,10 +87,11 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
             colors = CardDefaults.cardColors(containerColor = palette.surface),
             modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
-                Text("3h 12m", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = palette.onSurface)
-                Text("daily avg · ↓ 38m vs last week", fontSize = 12.sp, color = palette.dim)
+                Text(if (hasUsage) dailyAvg else "—", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = palette.onSurface)
+                Text(if (hasUsage) "daily average this week" else "grant Usage access to see this",
+                    fontSize = 12.sp, color = palette.dim)
                 Spacer(Modifier.height(12.dp))
-                WeeklyBars(palette.accent, palette.accentSoft)
+                WeeklyBars(days, palette.accent, palette.accentSoft)
             }
         }
         Spacer(Modifier.height(14.dp))
@@ -96,8 +104,7 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
                 Text("🧠 Root's read", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = palette.accent)
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "Your worst scroll window is 11pm–1am — it's costing you about 45 min of sleep. " +
-                        "Thursdays spike hardest, usually after a stressful day.",
+                    aiRead,
                     fontSize = 13.sp, color = palette.onSurface,
                 )
             }
@@ -176,16 +183,16 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
             modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
                 if (premium) {
-                    Text("🛡️ Strict Mode — active", fontSize = 13.sp,
+                    Text("🛡️ Strict Mode on", fontSize = 13.sp,
                         fontWeight = FontWeight.Bold, color = palette.accent)
                     Spacer(Modifier.height(6.dp))
-                    Text("No “open anyway.” The pause can't be bypassed while you're in a lockout.",
+                    Text("No \"open anyway\". The pause can't be skipped.",
                         fontSize = 13.sp, color = palette.dim)
                 } else {
-                    Text("🔒 Strict Mode — Premium", fontSize = 13.sp,
+                    Text("🔒 Strict Mode (Premium)", fontSize = 13.sp,
                         fontWeight = FontWeight.Bold, color = PremiumAccent)
                     Spacer(Modifier.height(6.dp))
-                    Text("No “open anyway.” Timed lockouts you can't bypass. Unlock in the You tab.",
+                    Text("Removes the \"open anyway\" button. Unlock in You.",
                         fontSize = 13.sp, color = palette.dim)
                 }
             }
@@ -207,20 +214,21 @@ private fun AppToggle(name: String, detail: String, checked: Boolean, onChange: 
 }
 
 @Composable
-private fun WeeklyBars(bar: Color, track: Color) {
-    val heights = listOf(0.55f, 0.78f, 0.64f, 0.90f, 0.48f, 0.70f, 0.40f)
+private fun WeeklyBars(days: List<UsageStatsReader.DayUsage>, bar: Color, track: Color) {
+    val values = if (days.isEmpty()) List(7) { 0 } else days.map { it.minutes }
+    val max = (values.maxOrNull() ?: 0).coerceAtLeast(1)
     Canvas(Modifier.fillMaxWidth().height(96.dp)) {
-        val n = heights.size
+        val n = values.size
         val gap = 10.dp.toPx()
         val w = (size.width - gap * (n - 1)) / n
-        heights.forEachIndexed { i, h ->
+        values.forEachIndexed { i, v ->
             val x = i * (w + gap)
-            val barH = size.height * h
+            val barH = size.height * (v.toFloat() / max)
             drawRoundRect(
                 color = track, topLeft = Offset(x, 0f), size = Size(w, size.height),
                 cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f),
             )
-            drawRoundRect(
+            if (barH > 0f) drawRoundRect(
                 color = bar, topLeft = Offset(x, size.height - barH), size = Size(w, barH),
                 cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f),
             )

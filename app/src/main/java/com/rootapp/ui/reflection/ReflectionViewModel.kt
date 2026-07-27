@@ -20,6 +20,7 @@ class ReflectionViewModel(
     private val llm: LlmClient,
     private val userName: String = "",
     pastMemory: String = "",
+    tone: String = "Gentle",
     private val onUserMessage: (String) -> Unit = {},
 ) : ViewModel() {
 
@@ -31,7 +32,7 @@ class ReflectionViewModel(
 
     // Full transcript incl. the hidden system prompt, sent to the model each turn.
     private val transcript = mutableListOf(
-        ChatMessage.system(Prompts.friendSystemPrompt(userName, pastMemory.ifBlank { null })),
+        ChatMessage.system(Prompts.friendSystemPrompt(userName, pastMemory.ifBlank { null }, tone)),
         ChatMessage.assistant(Prompts.opener(userName)),
     )
 

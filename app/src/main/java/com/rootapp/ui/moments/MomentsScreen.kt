@@ -67,7 +67,7 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
                             watchStatus = if (ok) "Watching this area for you" else "Couldn't set the watch spot"
                         }
                     } else {
-                        watchStatus = "No location yet — move a little and retry"
+                        watchStatus = "No location yet. Move around and retry."
                     }
                 }
         } catch (e: SecurityException) {

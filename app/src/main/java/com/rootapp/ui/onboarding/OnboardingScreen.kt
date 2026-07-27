@@ -66,8 +66,8 @@ fun OnboardingScreen(onDone: () -> Unit) {
         Text("Meet Root", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = palette.onSurface)
         Spacer(Modifier.height(8.dp))
         Text(
-            "A friend who helps you catch the moment before the scroll — gently, never nagging. " +
-                "To do that, Root needs a couple of permissions. You're always in control.",
+            "A friend who helps you catch the scroll before it starts. " +
+                "Root needs a couple of permissions to do that. You're always in control.",
             fontSize = 14.sp, color = palette.dim,
         )
         Spacer(Modifier.height(24.dp))

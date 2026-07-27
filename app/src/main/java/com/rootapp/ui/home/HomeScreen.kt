@@ -52,7 +52,7 @@ fun HomeScreen(
     val today = remember { LocalDate.now().toEpochDay() }
     var streak by remember { mutableIntStateOf(store.streak()) }
     var selectedMood by remember { mutableStateOf(store.todaysMood(today)) }
-    val streakText = if (streak > 0) "You're $streak ${if (streak == 1) "day" else "days"} in." else "Let's begin today."
+    val streakText = if (streak > 0) "Day $streak" else "Let's start today"
 
     Column(
         modifier = modifier
@@ -67,7 +67,7 @@ fun HomeScreen(
             color = palette.onSurface,
         )
         Text(
-            text = "Good to see you. $streakText",
+            text = streakText,
             fontSize = 13.sp,
             color = palette.dim,
         )
@@ -87,8 +87,8 @@ fun HomeScreen(
                 Orb(size = 72.dp)
                 Spacer(Modifier.height(14.dp))
                 Text(
-                    text = "\"You slept a little better last night. Proud of you. Want to talk for a bit?\"",
-                    fontSize = 14.sp,
+                    text = "Good to see you. Want to talk?",
+                    fontSize = 15.sp,
                     color = palette.onSurface,
                 )
             }

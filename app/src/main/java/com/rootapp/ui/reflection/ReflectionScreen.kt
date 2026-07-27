@@ -53,11 +53,12 @@ class ReflectionVMFactory(
     private val llm: LlmClient,
     private val userName: String,
     private val pastMemory: String,
+    private val tone: String,
     private val onUserMessage: (String) -> Unit,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-        ReflectionViewModel(llm, userName, pastMemory, onUserMessage) as T
+        ReflectionViewModel(llm, userName, pastMemory, tone, onUserMessage) as T
 }
 
 @Composable
@@ -70,6 +71,7 @@ fun ReflectionScreen(
     val supabase = remember { com.rootapp.data.SupabaseRepository(context) }
     val bgScope = rememberCoroutineScope()
     val pastMemory = remember { store.recentMemory().joinToString("; ") }
+    val tone = remember { com.rootapp.data.SettingsStore(context).personality }
     var sessionLogged by remember { mutableStateOf(false) }
     var msgCount by remember { mutableIntStateOf(0) }
     val vm: ReflectionViewModel = viewModel(
@@ -77,6 +79,7 @@ fun ReflectionScreen(
             llm = AppModule.llmClient,
             userName = userName,
             pastMemory = pastMemory,
+            tone = tone,
             onUserMessage = {
                 store.remember(it)
                 msgCount++

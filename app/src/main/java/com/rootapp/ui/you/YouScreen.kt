@@ -89,7 +89,7 @@ fun YouScreen(
                         color = Color(0xFF231A08), fontWeight = FontWeight.SemiBold)
                 }
                 Spacer(Modifier.height(6.dp))
-                Text("Test unlock — real purchases arrive with Play Billing.",
+                Text("Test unlock. Real purchases come with Play Billing.",
                     color = Color(0xFFB9CFC0), fontSize = 11.sp)
             }
         }

@@ -44,7 +44,7 @@ class UsageWatcherService : Service() {
     private lateinit var usm: UsageStatsManager
     private lateinit var monitored: MonitoredApps
     private lateinit var overlay: InterruptOverlay
-    private var lastShownAt: Long? = null
+    private var lastForeground: String? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -68,24 +68,28 @@ class UsageWatcherService : Service() {
         while (scope.isActive) {
             val now = System.currentTimeMillis()
             val current = currentForegroundPackage(now)
-            val monitoredSet = monitored.get()
-            if (InterruptPolicy.shouldInterrupt(current, monitoredSet, now, lastShownAt)) {
-                lastShownAt = now
-                val label = current!!.substringAfterLast('.').replaceFirstChar { it.uppercase() }
-                LocalStore(this).incInterruptShown()
-                Track.event(Events.INTERRUPT_SHOWN)
-                val strict = SettingsStore(this).premium
-                main.post {
-                    overlay.showForApp(
-                        appLabel = label,
-                        strict = strict,
-                        onPause = {
-                            LocalStore(this).incInterruptPaused()
-                            Track.event(Events.INTERRUPT_PAUSED)
-                            bringRootToFront()
-                        },
-                        onProceed = { Track.event(Events.INTERRUPT_OPENED_ANYWAY) },
-                    )
+            // Transition-based: fire every time the user switches INTO a monitored app,
+            // so re-opening YouTube later always re-triggers (fixes the "only first time" bug).
+            if (current != null && current != lastForeground) {
+                lastForeground = current
+                val monitoredSet = monitored.get()
+                if (current in monitoredSet && !overlay.isShowing) {
+                    val label = current.substringAfterLast('.').replaceFirstChar { it.uppercase() }
+                    LocalStore(this).incInterruptShown()
+                    Track.event(Events.INTERRUPT_SHOWN)
+                    val strict = SettingsStore(this).premium
+                    main.post {
+                        overlay.showForApp(
+                            appLabel = label,
+                            strict = strict,
+                            onPause = {
+                                LocalStore(this).incInterruptPaused()
+                                Track.event(Events.INTERRUPT_PAUSED)
+                                bringRootToFront()
+                            },
+                            onProceed = { Track.event(Events.INTERRUPT_OPENED_ANYWAY) },
+                        )
+                    }
                 }
             }
             delay(POLL_MS)
