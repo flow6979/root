@@ -98,11 +98,19 @@
       <table>
         <thead><tr>
           <th>User</th><th>Joined</th><th>Last seen</th><th>Moods</th><th>Foods</th>
-          <th>Reflections</th><th>Premium until</th>
+          <th>Reflections</th><th>Premium until</th><th>Activity</th>
         </tr></thead>
         <tbody id="rows"></tbody>
       </table>
     </div>
+  </div>
+
+  <div class="card" id="detailCard" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <b id="detailTitle">Activity</b>
+      <button class="ghost" id="closeDetail">Close</button>
+    </div>
+    <div id="activityList"></div>
   </div>
 </div>
 
@@ -163,7 +171,54 @@ async function load(){
     pTd.appendChild(pill);
     tr.appendChild(pTd);
 
+    const actTd = document.createElement("td");
+    const actBtn = document.createElement("button");
+    actBtn.className = "ghost"; actBtn.textContent = "View";
+    actBtn.style.padding = "6px 12px"; actBtn.style.fontSize = "12px";
+    actBtn.addEventListener("click", () => loadActivity(r.user_id));
+    actTd.appendChild(actBtn);
+    tr.appendChild(actTd);
+
     tb.appendChild(tr);
+  }
+}
+
+const MOODS = ["😔 sad","😐 meh","🙂 okay","😌 calm","⚡️ energised"];
+function fmtDateTime(s){ return s ? new Date(s).toLocaleString([], {month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}) : "—"; }
+
+async function loadActivity(uid){
+  $("detailCard").style.display = "block";
+  $("detailTitle").textContent = "Activity · " + uid.slice(0,8) + "…";
+  const list = $("activityList");
+  list.replaceChildren();
+  const loading = document.createElement("div"); loading.className = "msg"; loading.textContent = "Loading…";
+  list.appendChild(loading);
+  try{
+    const [moods, foods, refs] = await Promise.all([
+      api(`/rest/v1/moods?select=mood,created_at&user_id=eq.${uid}&order=created_at.desc&limit=50`),
+      api(`/rest/v1/foods?select=label,healthy,created_at&user_id=eq.${uid}&order=created_at.desc&limit=50`),
+      api(`/rest/v1/reflections?select=message_count,created_at&user_id=eq.${uid}&order=created_at.desc&limit=50`),
+    ]);
+    const events = [];
+    for(const m of moods) events.push({ t:m.created_at, icon:"🌤", text:"Mood: " + (MOODS[m.mood] || m.mood) });
+    for(const f of foods) events.push({ t:f.created_at, icon:(f.healthy?"🥗":"🍔"), text:"Ate: " + (f.label||"meal") + (f.healthy?" (healthy)":" (junk)") });
+    for(const r of refs) events.push({ t:r.created_at, icon:"💬", text:"Reflection · " + (r.message_count||0) + " messages" });
+    events.sort((a,b)=> new Date(b.t) - new Date(a.t));
+
+    list.replaceChildren();
+    if(events.length === 0){ const e=document.createElement("div"); e.className="msg"; e.textContent="No activity yet."; list.appendChild(e); return; }
+    for(const ev of events){
+      const rowEl = document.createElement("div");
+      rowEl.style.cssText = "display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #1d3860;align-items:center";
+      const ic = document.createElement("div"); ic.style.fontSize="18px"; ic.textContent = ev.icon;
+      const txt = document.createElement("div"); txt.style.flex="1"; txt.style.fontSize="13px"; txt.textContent = ev.text;
+      const when = document.createElement("div"); when.style.cssText="font-size:11px;color:var(--dim)"; when.textContent = fmtDateTime(ev.t);
+      rowEl.appendChild(ic); rowEl.appendChild(txt); rowEl.appendChild(when);
+      list.appendChild(rowEl);
+    }
+  }catch(e){
+    list.replaceChildren();
+    const err=document.createElement("div"); err.className="msg err"; err.textContent = e.message; list.appendChild(err);
   }
 }
 
@@ -195,6 +250,7 @@ $("connect").addEventListener("click", async () => {
   }catch(e){ msg("connMsg", "Failed: "+e.message, "err"); }
 });
 $("refresh").addEventListener("click", load);
+$("closeDetail").addEventListener("click", () => { $("detailCard").style.display = "none"; });
 $("grantBtn").addEventListener("click", () => grant(parseInt($("grantDays").value || "30", 10)));
 $("revokeBtn").addEventListener("click", () => grant(0));
 
