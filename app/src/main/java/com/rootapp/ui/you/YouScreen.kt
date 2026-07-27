@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -48,6 +49,8 @@ fun YouScreen(
 ) {
     val palette = LocalRootPalette.current
     val context = LocalContext.current
+    val settings = remember { com.rootapp.data.SettingsStore(context) }
+    var premium by remember { mutableStateOf(settings.premium) }
     var refresh by remember { mutableIntStateOf(0) }
     LifecycleResumeEffect(Unit) { refresh++; onPauseOrDispose { } }
     val hasUsage = remember(refresh) { ShieldPermissions.hasUsageAccess(context) }
@@ -58,7 +61,7 @@ fun YouScreen(
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         Text("You", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
-        Text("$userName · Free plan", fontSize = 12.sp, color = palette.dim)
+        Text("$userName · ${if (premium) "Premium" else "Free"} plan", fontSize = 12.sp, color = palette.dim)
         Spacer(Modifier.height(16.dp))
 
         // Premium
@@ -69,14 +72,25 @@ fun YouScreen(
                     .background(Brush.horizontalGradient(listOf(Color(0xFF2E5540), Color(0xFF3E6B52))))
                     .padding(16.dp),
             ) {
-                Text("✨ Root Premium", color = PremiumAccent, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(if (premium) "✨ Premium active" else "✨ Root Premium",
+                    color = PremiumAccent, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Spacer(Modifier.height(6.dp))
-                Text("Strict mode · unlimited AI · weekly insights · story audio",
-                    color = Color(0xFFD6E6DA), fontSize = 13.sp)
+                Text(
+                    if (premium) "All features unlocked. Thank you for supporting Root."
+                    else "Strict mode · unlimited AI · weekly insights · story audio",
+                    color = Color(0xFFD6E6DA), fontSize = 13.sp,
+                )
                 Spacer(Modifier.height(12.dp))
-                Button(onClick = {}, colors = ButtonDefaults.buttonColors(containerColor = PremiumAccent)) {
-                    Text("Try 7 days free", color = Color(0xFF231A08), fontWeight = FontWeight.SemiBold)
+                Button(
+                    onClick = { premium = !premium; settings.premium = premium },
+                    colors = ButtonDefaults.buttonColors(containerColor = PremiumAccent),
+                ) {
+                    Text(if (premium) "Turn off (test)" else "Unlock premium (test)",
+                        color = Color(0xFF231A08), fontWeight = FontWeight.SemiBold)
                 }
+                Spacer(Modifier.height(6.dp))
+                Text("Test unlock — real purchases arrive with Play Billing.",
+                    color = Color(0xFFB9CFC0), fontSize = 11.sp)
             }
         }
         Spacer(Modifier.height(16.dp))

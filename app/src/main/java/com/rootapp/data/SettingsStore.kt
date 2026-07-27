@@ -18,6 +18,11 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean(ONBOARDED, false)
         set(v) = prefs.edit().putBoolean(ONBOARDED, v).apply()
 
+    /** Premium entitlement. Currently flipped by a test unlock; later set by Play Billing. */
+    var premium: Boolean
+        get() = prefs.getBoolean(PREMIUM, false)
+        set(v) = prefs.edit().putBoolean(PREMIUM, v).apply()
+
     var userName: String
         get() = prefs.getString(USER_NAME, "Vaibhav") ?: "Vaibhav"
         set(v) = prefs.edit().putString(USER_NAME, v).apply()
@@ -27,5 +32,6 @@ class SettingsStore(context: Context) {
         private const val PERSONALITY = "personality"
         private const val ONBOARDED = "onboarded"
         private const val USER_NAME = "user_name"
+        private const val PREMIUM = "premium"
     }
 }

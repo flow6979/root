@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.rootapp.data.SettingsStore
 import com.rootapp.shield.InterruptOverlay
 import com.rootapp.shield.MonitoredApps
 import com.rootapp.shield.ShieldPermissions
@@ -48,6 +49,7 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
     val palette = LocalRootPalette.current
     val context = LocalContext.current
     val running by UsageWatcherService.running.collectAsStateWithLifecycle()
+    val premium = remember { SettingsStore(context).premium }
 
     var permRefresh by remember { mutableIntStateOf(0) }
     // Re-check permissions whenever we return to this screen (user grants them in Settings).
@@ -140,7 +142,7 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
                     OutlinedButton(
                         onClick = {
                             InterruptOverlay(context).showForApp(
-                                appLabel = "Instagram", onPause = {}, onProceed = {},
+                                appLabel = "Instagram", strict = premium, onPause = {}, onProceed = {},
                             )
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -173,11 +175,19 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
             colors = CardDefaults.cardColors(containerColor = palette.surface),
             modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
-                Text("🔒 Strict Mode — Premium", fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold, color = PremiumAccent)
-                Spacer(Modifier.height(6.dp))
-                Text("No “open anyway.” Timed lockouts you can't bypass.",
-                    fontSize = 13.sp, color = palette.dim)
+                if (premium) {
+                    Text("🛡️ Strict Mode — active", fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold, color = palette.accent)
+                    Spacer(Modifier.height(6.dp))
+                    Text("No “open anyway.” The pause can't be bypassed while you're in a lockout.",
+                        fontSize = 13.sp, color = palette.dim)
+                } else {
+                    Text("🔒 Strict Mode — Premium", fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold, color = PremiumAccent)
+                    Spacer(Modifier.height(6.dp))
+                    Text("No “open anyway.” Timed lockouts you can't bypass. Unlock in the You tab.",
+                        fontSize = 13.sp, color = palette.dim)
+                }
             }
         }
         Spacer(Modifier.height(24.dp))

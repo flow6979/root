@@ -59,6 +59,8 @@ private val AMBER = Color(0xFFF0C987)
 
 @Composable
 fun StoriesScreen(modifier: Modifier = Modifier) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val premium = remember { com.rootapp.data.SettingsStore(context).premium }
     var index by remember { mutableIntStateOf(0) }
     val total = STORIES.size
 
@@ -119,7 +121,12 @@ fun StoriesScreen(modifier: Modifier = Modifier) {
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(100))
                     .background(Color(0x33000000)).padding(12.dp),
                 contentAlignment = Alignment.Center,
-            ) { Text("🎧 Listen instead · Premium", color = AMBER, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
+            ) {
+                Text(
+                    if (premium) "🎧 Listen" else "🎧 Listen instead · Premium",
+                    color = AMBER, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                )
+            }
             Spacer(Modifier.height(12.dp))
             Text(
                 "tap when you're ready — no rush",

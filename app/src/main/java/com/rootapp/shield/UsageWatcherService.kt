@@ -20,6 +20,7 @@ import com.rootapp.MainActivity
 import com.rootapp.analytics.Events
 import com.rootapp.analytics.Track
 import com.rootapp.data.LocalStore
+import com.rootapp.data.SettingsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -73,9 +74,11 @@ class UsageWatcherService : Service() {
                 val label = current!!.substringAfterLast('.').replaceFirstChar { it.uppercase() }
                 LocalStore(this).incInterruptShown()
                 Track.event(Events.INTERRUPT_SHOWN)
+                val strict = SettingsStore(this).premium
                 main.post {
                     overlay.showForApp(
                         appLabel = label,
+                        strict = strict,
                         onPause = {
                             LocalStore(this).incInterruptPaused()
                             Track.event(Events.INTERRUPT_PAUSED)

@@ -22,11 +22,21 @@ class InterruptOverlay(context: Context) {
 
     val isShowing: Boolean get() = view != null
 
-    /** Convenience for the app-block case. */
-    fun showForApp(appLabel: String, onPause: () -> Unit, onProceed: () -> Unit) =
-        show("Hey — you opened $appLabel.", "Want to sit with me for 60 seconds instead?", onPause, onProceed)
+    /** Convenience for the app-block case. strict=true removes the "open anyway" escape. */
+    fun showForApp(appLabel: String, strict: Boolean = false, onPause: () -> Unit, onProceed: () -> Unit) =
+        show(
+            "Hey — you opened $appLabel.",
+            if (strict) "Strict mode is on. Let's take this moment together." else "Want to sit with me for 60 seconds instead?",
+            onPause, onProceed, allowProceed = !strict,
+        )
 
-    fun show(titleText: String, subtitleText: String, onPause: () -> Unit, onProceed: () -> Unit) {
+    fun show(
+        titleText: String,
+        subtitleText: String,
+        onPause: () -> Unit,
+        onProceed: () -> Unit,
+        allowProceed: Boolean = true,
+    ) {
         if (view != null) return
 
         val root = LinearLayout(appCtx).apply {
@@ -53,11 +63,14 @@ class InterruptOverlay(context: Context) {
             text = "Okay, let's pause"
             setOnClickListener { dismiss(); onPause() }
         }
-        val proceed = Button(appCtx).apply {
-            text = "Open anyway"
-            setOnClickListener { dismiss(); onProceed() }
+        root.addView(orb); root.addView(title); root.addView(msg); root.addView(pause)
+        if (allowProceed) {
+            val proceed = Button(appCtx).apply {
+                text = "Open anyway"
+                setOnClickListener { dismiss(); onProceed() }
+            }
+            root.addView(proceed)
         }
-        root.addView(orb); root.addView(title); root.addView(msg); root.addView(pause); root.addView(proceed)
 
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
