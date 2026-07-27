@@ -87,6 +87,8 @@ Vertical slice BUILDS and is TESTED on this machine.
   (needs a free project - see docs/SUPABASE.md).
 - Analytics: swappable Track/Analytics layer (Logcat now, PostHog later), content-safe;
   key events instrumented. See docs/ANALYTICS.md.
-- You tab is still a placeholder.
+- Onboarding: first-run permission flow (usage/overlay/notifications), persists via SettingsStore.
+- You/settings: premium card, appearance (minimalist toggle, persisted + drives whole UI),
+  friend personality, permission status. All 5 tabs are now real screens (no placeholders).
 Next: push to GitHub (docs/GITHUB.md), device-test, then build the Shield interrupt
 engine (validate Play Store policy first - see docs/PLAY_STORE.md + ROADMAP risks).

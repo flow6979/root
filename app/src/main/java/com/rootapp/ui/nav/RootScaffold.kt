@@ -23,11 +23,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -37,12 +37,15 @@ import androidx.navigation.compose.rememberNavController
 import com.rootapp.ui.common.PlaceholderScreen
 import com.rootapp.ui.home.HomeScreen
 import com.rootapp.ui.reflection.ReflectionScreen
+import com.rootapp.data.SettingsStore
 import com.rootapp.ui.moments.MomentsScreen
+import com.rootapp.ui.onboarding.OnboardingScreen
 import com.rootapp.ui.shield.ShieldScreen
 import com.rootapp.ui.stories.StoriesScreen
 import com.rootapp.ui.theme.LocalRootPalette
 import com.rootapp.ui.theme.RootTheme
 import com.rootapp.ui.theme.Sky
+import com.rootapp.ui.you.YouScreen
 import java.util.Calendar
 
 private enum class Tab(val route: String, val label: String, val icon: ImageVector) {
@@ -55,11 +58,20 @@ private enum class Tab(val route: String, val label: String, val icon: ImageVect
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RootScaffold(userName: String = "Vaibhav", currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
+fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
+    val context = LocalContext.current
+    val settings = remember { SettingsStore(context) }
     val timeOfDay = remember(currentHour) { Sky.fromHour(currentHour) }
-    var minimalist by rememberSaveable { mutableStateOf(false) }
+    var minimalist by remember { mutableStateOf(settings.minimalist) }
+    var personality by remember { mutableStateOf(settings.personality) }
+    var onboarded by remember { mutableStateOf(settings.onboarded) }
+    val userName = remember { settings.userName }
 
     RootTheme(timeOfDay = timeOfDay, minimalist = minimalist) {
+        if (!onboarded) {
+            OnboardingScreen(onDone = { settings.onboarded = true; onboarded = true })
+            return@RootTheme
+        }
         val palette = LocalRootPalette.current
         val navController = rememberNavController()
         val backStack by navController.currentBackStackEntryAsState()
@@ -70,7 +82,7 @@ fun RootScaffold(userName: String = "Vaibhav", currentHour: Int = Calendar.getIn
                 TopAppBar(
                     title = { Text("Root") },
                     actions = {
-                        IconButton(onClick = { minimalist = !minimalist }) {
+                        IconButton(onClick = { minimalist = !minimalist; settings.minimalist = minimalist }) {
                             Icon(Icons.Outlined.Contrast, contentDescription = "Toggle minimalist mode")
                         }
                     },
@@ -114,7 +126,13 @@ fun RootScaffold(userName: String = "Vaibhav", currentHour: Int = Calendar.getIn
                     composable(Tab.MOMENTS.route) { MomentsScreen() }
                     composable(Tab.STORIES.route) { StoriesScreen() }
                     composable(Tab.YOU.route) {
-                        PlaceholderScreen("You", "Settings, appearance, personality, and premium.")
+                        YouScreen(
+                            userName = userName,
+                            minimalist = minimalist,
+                            onMinimalistChange = { minimalist = it; settings.minimalist = it },
+                            personality = personality,
+                            onPersonalityChange = { personality = it; settings.personality = it },
+                        )
                     }
                 }
             }
