@@ -38,6 +38,26 @@ class GeofenceManager(private val context: Context) {
             .addOnFailureListener { Log.w("Geofence", "register failed: ${it.message}"); onResult(false) }
     }
 
+    @SuppressLint("MissingPermission")
+    fun registerNearby(places: List<NearbyPlaces.Place>, onResult: (Boolean) -> Unit = {}) {
+        if (places.isEmpty()) { onResult(false); return }
+        val fences = places.take(5).mapIndexed { i, p ->
+            Geofence.Builder()
+                .setRequestId("nearby_$i")
+                .setCircularRegion(p.lat, p.lng, 120f)
+                .setExpirationDuration(Geofence.NEVER_EXPIRE)
+                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER)
+                .build()
+        }
+        val request = GeofencingRequest.Builder()
+            .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
+            .addGeofences(fences)
+            .build()
+        client.addGeofences(request, pendingIntent)
+            .addOnSuccessListener { Log.d("Geofence", "registered ${fences.size} nearby"); onResult(true) }
+            .addOnFailureListener { Log.w("Geofence", "nearby register failed: ${it.message}"); onResult(false) }
+    }
+
     fun clear() = client.removeGeofences(listOf(FOOD_SPOT))
 
     companion object {

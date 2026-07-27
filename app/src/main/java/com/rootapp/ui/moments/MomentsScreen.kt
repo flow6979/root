@@ -11,7 +11,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.speech.RecognizerIntent
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.AlertDialog
@@ -40,8 +43,10 @@ import androidx.core.content.ContextCompat
 import com.google.android.gms.location.LocationServices
 import com.rootapp.data.FoodEntry
 import com.rootapp.data.LocalStore
+import com.rootapp.data.SettingsStore
 import com.rootapp.data.SupabaseRepository
 import com.rootapp.location.GeofenceManager
+import com.rootapp.location.NearbyPlaces
 import com.rootapp.ui.theme.LocalRootPalette
 import kotlinx.coroutines.launch
 
@@ -53,21 +58,31 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
     val supabase = remember { SupabaseRepository(context) }
     val geofence = remember { GeofenceManager(context) }
     val scope = rememberCoroutineScope()
+    val premium = remember { SettingsStore(context).premium }
     var foods by remember { mutableStateOf(store.foods().reversed()) }
     var showDialog by remember { mutableStateOf(false) }
     var watchStatus by remember { mutableStateOf<String?>(null) }
+    var nearest by remember { mutableStateOf<NearbyPlaces.Place?>(null) }
 
+    fun refreshFoods() { foods = store.foods().reversed() }
+
+    // Find real eating spots nearby (OpenStreetMap) and watch them.
     @Suppress("MissingPermission")
-    fun setWatchSpot() {
+    fun findNearby() {
+        watchStatus = "Looking for eating spots nearby…"
         try {
             LocationServices.getFusedLocationProviderClient(context).lastLocation
                 .addOnSuccessListener { loc ->
-                    if (loc != null) {
-                        geofence.registerFoodSpot(loc.latitude, loc.longitude) { ok ->
-                            watchStatus = if (ok) "Watching this area for you" else "Couldn't set the watch spot"
+                    if (loc == null) { watchStatus = "No location yet. Move around and retry."; return@addOnSuccessListener }
+                    scope.launch {
+                        val places = NearbyPlaces.findFoodSpots(loc.latitude, loc.longitude)
+                        if (places.isEmpty()) {
+                            watchStatus = "No eating spots found nearby."
+                        } else {
+                            geofence.registerNearby(places)
+                            nearest = places.first()
+                            watchStatus = "Watching ${minOf(places.size, 5)} spots near you."
                         }
-                    } else {
-                        watchStatus = "No location yet. Move around and retry."
                     }
                 }
         } catch (e: SecurityException) {
@@ -77,7 +92,29 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
 
     val locationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { granted -> if (granted) setWatchSpot() else watchStatus = "Location permission needed" }
+    ) { granted -> if (granted) findNearby() else watchStatus = "Location permission needed" }
+
+    // Voice food logging (premium): speak a meal, we log it.
+    val foodVoiceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+        val spoken = res.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        if (!spoken.isNullOrBlank()) {
+            val junk = listOf("burger", "pizza", "fries", "soda", "coke", "chips", "candy", "fried", "ice cream", "donut")
+            val healthy = junk.none { spoken.lowercase().contains(it) }
+            store.addFood(spoken, healthy, System.currentTimeMillis())
+            refreshFoods()
+            scope.launch { supabase.pushFood(spoken, healthy) }
+            Track.event(Events.FOOD_LOGGED, mapOf("healthy" to healthy, "source" to "voice"))
+        }
+    }
+    val logByVoice = {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "What did you eat?")
+        }
+        runCatching { foodVoiceLauncher.launch(intent) }
+            .onFailure { Toast.makeText(context, "No speech recognizer on this device", Toast.LENGTH_SHORT).show() }
+        Unit
+    }
 
     Column(
         modifier = modifier.fillMaxWidth().verticalScroll(rememberScrollState())
@@ -91,10 +128,14 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
             colors = CardDefaults.cardColors(containerColor = palette.accentSoft),
             modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
-                Text("📍 Near a food spot", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = palette.accent)
+                Text(
+                    if (nearest != null) "📍 You're near ${nearest!!.name}" else "📍 Eating spots nearby",
+                    fontSize = 14.sp, fontWeight = FontWeight.Bold, color = palette.accent,
+                )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "Root nudges you before an impulse food stop when you're near a spot you're watching.",
+                    if (nearest != null) "${nearest!!.distanceM}m away. Want to pause before you decide?"
+                    else "I'll find eating spots around you and nudge you before an impulse stop.",
                     fontSize = 13.sp, color = palette.onSurface,
                 )
                 Spacer(Modifier.height(12.dp))
@@ -103,10 +144,10 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
                         val granted = ContextCompat.checkSelfPermission(
                             context, Manifest.permission.ACCESS_FINE_LOCATION,
                         ) == PackageManager.PERMISSION_GRANTED
-                        if (granted) setWatchSpot() else locationLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                        if (granted) findNearby() else locationLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
                     },
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("📍 Set a watch spot here") }
+                ) { Text("Find eating spots near me") }
                 watchStatus?.let {
                     Spacer(Modifier.height(8.dp))
                     Text(it, fontSize = 12.sp, color = palette.dim)
@@ -136,6 +177,14 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
         OutlinedButton(onClick = { showDialog = true }, modifier = Modifier.fillMaxWidth()) {
             Text("＋ Log what you ate")
         }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(
+            onClick = {
+                if (premium) logByVoice()
+                else Toast.makeText(context, "Voice logging is a premium feature", Toast.LENGTH_SHORT).show()
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text(if (premium) "🎤 Log by voice" else "🎤 Log by voice (Premium)") }
         Spacer(Modifier.height(24.dp))
     }
 

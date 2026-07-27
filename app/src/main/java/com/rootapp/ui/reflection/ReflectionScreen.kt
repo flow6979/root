@@ -21,8 +21,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import android.content.Intent
+import android.speech.RecognizerIntent
+import android.speech.tts.TextToSpeech
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.runtime.DisposableEffect
+import java.util.Locale
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -84,9 +93,37 @@ fun ReflectionScreen(
                 store.remember(it)
                 msgCount++
                 if (!sessionLogged) { sessionLogged = true; bgScope.launch { supabase.pushReflection(msgCount) } }
+                // Auto-log food mentioned during the session into Moments.
+                bgScope.launch {
+                    val m = com.rootapp.ai.FoodExtractor.extract(AppModule.llmClient, it)
+                    if (m != null) {
+                        store.addFood(m.food, m.healthy, System.currentTimeMillis())
+                        supabase.pushFood(m.food, m.healthy)
+                    }
+                }
             },
         ),
     )
+
+    // ---- voice session (premium): speak with the friend, it replies aloud ----
+    val premium = remember { com.rootapp.data.SettingsStore(context).premium }
+    val tts = remember { TextToSpeech(context) {} }
+    DisposableEffect(Unit) { onDispose { tts.stop(); tts.shutdown() } }
+    var voiceMode by remember { mutableStateOf(false) }
+    var lastSpoken by remember { mutableIntStateOf(0) }
+    val speechLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+        val spoken = res.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+        if (!spoken.isNullOrBlank()) { voiceMode = true; vm.send(spoken) }
+    }
+    val startListening = {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Talk to Root")
+        }
+        runCatching { speechLauncher.launch(intent) }
+            .onFailure { Toast.makeText(context, "No speech recognizer on this device", Toast.LENGTH_SHORT).show() }
+        Unit
+    }
     val palette = LocalRootPalette.current
     val state by vm.state.collectAsStateWithLifecycle()
     var input by remember { mutableStateOf("") }
@@ -96,6 +133,18 @@ fun ReflectionScreen(
     LaunchedEffect(state.visible.size, state.sending) {
         val count = state.visible.size + if (state.sending) 1 else 0
         if (count > 0) listState.animateScrollToItem(count - 1)
+    }
+
+    // In voice mode, speak each new assistant reply aloud.
+    LaunchedEffect(state.visible.size, state.sending) {
+        if (voiceMode && !state.sending) {
+            val last = state.visible.lastOrNull()
+            if (last?.role == "assistant" && state.visible.size > lastSpoken) {
+                lastSpoken = state.visible.size
+                tts.language = Locale.getDefault()
+                tts.speak(last.content, TextToSpeech.QUEUE_FLUSH, null, "root-${state.visible.size}")
+            }
+        }
     }
 
     Column(modifier = modifier.fillMaxSize().padding(horizontal = 14.dp)) {
@@ -128,15 +177,26 @@ fun ReflectionScreen(
             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            IconButton(
+                onClick = {
+                    if (premium) startListening()
+                    else Toast.makeText(context, "Voice is a premium feature", Toast.LENGTH_SHORT).show()
+                },
+                enabled = !state.sending,
+            ) {
+                Icon(Icons.Filled.Mic, contentDescription = "Talk",
+                    tint = if (premium) palette.accent else palette.dim)
+            }
             OutlinedTextField(
                 value = input,
                 onValueChange = { input = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("Say whatever's on your mind…") },
+                placeholder = { Text(if (premium) "Type or tap the mic" else "Say whatever's on your mind…") },
                 enabled = !state.sending,
             )
             IconButton(
                 onClick = {
+                    voiceMode = false
                     vm.send(input)
                     input = ""
                 },
