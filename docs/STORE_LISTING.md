@@ -29,9 +29,10 @@ uses your camera or microphone in the background.
 Free to use. Optional premium unlocks stricter blocking, deeper sessions, and insights.
 
 ## Graphics needed (before upload)
-- App icon 512x512 (export from the adaptive icon)
-- Feature graphic 1024x500
-- At least 2-8 phone screenshots (Home, Shield interrupt, Stories, You)
+- App icon 512x512 (export from the adaptive icon) - TODO
+- Feature graphic 1024x500 - TODO
+- Phone screenshots - **captured** in `docs/screenshots/` (Home, Shield, Moments, Stories,
+  You, plus the score explainer). Re-shoot at final resolution before upload if needed.
 
 ## Category / content
 - Category: Health & Fitness (or Lifestyle)

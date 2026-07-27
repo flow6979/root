@@ -3,6 +3,29 @@
 > Do this only once the app is genuinely testable. For the first release use the
 > **Internal testing** track (up to 100 testers, no public review lag).
 
+## Where we are now (v0.2.4)
+- All 5 tabs are built and running; APKs are published as GitHub releases for sideload testing.
+- Screenshots for the listing are captured in `docs/screenshots/` (Home, Shield, Moments,
+  Stories, You).
+- **Premium is server-controlled** via the Supabase `entitlements` table and can be granted by
+  an admin today (see `docs/ADMIN.md`). **Self-serve purchase needs Play Billing** - that
+  integration (below) is the main remaining item before charging users.
+- Not yet done for a store release: app icon + feature graphic, privacy policy URL, release
+  signing config wired into Gradle, honest Data Safety form, and key hardening (move
+  Groq/ElevenLabs/anon keys off-device via a backend, then rotate them).
+
+## Versioning (already wired)
+Every upload must increase `versionCode` (integer) in `app/build.gradle.kts`; bump
+`versionName` (e.g. `0.2.4`) for humans. Current: `versionCode = 15`, `versionName = "0.2.4"`.
+
+## Selling premium (Play Billing) - TODO
+1. Play Console -> Monetize -> Products -> **Subscriptions**: create e.g.
+   `root_premium_monthly` with a price.
+2. Integrate the **Play Billing Library**: the "Unlock premium" button launches Google's
+   purchase sheet; on success, write an `entitlements` row (or verify server-side).
+3. Optional but recommended: wrap Billing with **RevenueCat** (free under ~$2.5k/mo) for
+   cross-device entitlements + a subscriber dashboard.
+
 ## 0. Prerequisites (one-time)
 - A Google Play Developer account: **$25 one-time fee**, at
   https://play.google.com/console . Approval can take a day or two.

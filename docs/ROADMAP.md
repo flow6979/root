@@ -17,27 +17,38 @@
 - Toolchain + emulator set up (JDK17, Gradle 8.7, SDK 34, AVD root_pixel).
 - Slice verified: 15 unit tests + 2 Compose UI tests green; run live on emulator.
 
-- Pushed to GitHub: github.com/flow6979/root-app (private).
+- Pushed to GitHub: github.com/flow6979/root-app (private). Releases up to **v0.2.4**.
 - Shield reality-check done + engine BUILT & verified (poller + overlay + FGS).
 - Shield insights UI + immersive Stories screen BUILT & verified on emulator.
 
+- All 5 tabs BUILT (Home, Shield, Moments, Stories, You) - see docs/screenshots/.
+- Groq AI: LIVE + verified (chat + reflection + Whisper speech-to-text).
+- Voice: voice-only session; TTS fallback chain ElevenLabs -> Google Translate TTS -> system.
+- Supabase: LIVE - email/password + anonymous auth, RLS cloud sync of mood/food/reflections.
+- Moments: nearby eating spots via OSM Overpass, tagged healthy/junk; eating score + explainer;
+  food log with add / voice / per-day history / delete.
+- Stories: AI "For you" + public-domain "Classics", refreshable, optional cloud narration.
+- Scores: deterministic wellbeing/eating/mood/screen scores + Home tap-to-explain dialog.
+- Personality (Gentle / Tough-love) applied to the friend's tone.
+- Premium: server-controlled `entitlements` table + test unlock. Admin via Supabase dashboard
+  (grant/revoke functions + `premium_users` / `user_progress` views - see docs/ADMIN.md).
+
 ## Distance to a real launch (honest)
 Internal-testing-ready in DAYS (needs: app icon, privacy policy URL, release signing
-config, honest Data Safety form). Public MVP is ~4-8 weeks: auth + persistence (Supabase),
-route AI via a backend (hide key + RAG), Moments tab, Play Billing/premium, Stories content
-pipeline, onboarding polish, multi-device testing. See ANALYTICS.md for owner metrics.
-
-- Groq AI: LIVE + verified on emulator.
-- Supabase: LIVE - anonymous auth + RLS cloud sync of mood/food, verified end-to-end.
+config, honest Data Safety form). The one true feature gap for selling premium is
+**self-serve Play Billing** (today premium is admin-granted or a test unlock). Public MVP
+also wants: route AI + writes via a backend (hide keys + RAG), two-way sync/restore across
+devices, onboarding polish, and multi-device testing. See ANALYTICS.md for owner metrics.
 
 ## Next up
-- Sync remaining data (reflections metadata, interrupt stats) + two-way sync/restore on new device.
+- **Play Billing** subscribe flow so users can buy premium themselves (main gap).
+- Route AI + writes via a backend so the anon/Groq/ElevenLabs keys aren't shipped in the app;
+  rotate the current keys before going public.
+- Two-way sync/restore on a new device; sync interrupt stats.
 - RAG memory for the friend (embed reflections -> pgvector, retrieve as context).
-- Premium + Play Billing; Strict Mode enforcement.
-- Geofencing + Health Connect for Moments.
+- Geofencing + Health Connect for Moments (real GPS triggers, sleep/steps).
 - Analytics live (PostHog + Crashlytics) - see docs/ANALYTICS.md.
-- Store assets (icon, listing, privacy policy) + release signing + internal-testing upload.
-- Route AI + writes via a backend so the anon key/Groq key aren't shipped in the app.
+- Store assets (icon, feature graphic, listing) + release signing + internal-testing upload.
 
 ## Next (in order)
 1. **Tech stack + hosting decisions** (in progress). Record picks in DECISIONS "Tech".

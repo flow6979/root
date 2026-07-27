@@ -7,6 +7,13 @@ dashboard** (supabase.com → your project). Run the one-time SQL below and you 
 - **one-line functions** to grant/revoke premium.
 
 ## Step 1 - one-time setup (paste in Supabase → SQL Editor → Run)
+
+> Run the **whole block top-to-bottom in one go**. Statement 1 creates the `entitlements`
+> table; everything after references it, so a partial paste fails with
+> `relation "public.entitlements" does not exist`. The `user_progress` view also needs the
+> `moods` / `foods` / `reflections` tables from `docs/SUPABASE.md` - if you only want premium
+> management, you can skip that view and run the rest.
+
 ```sql
 -- Entitlements: server-controlled premium (app reads this on launch)
 create table if not exists public.entitlements (

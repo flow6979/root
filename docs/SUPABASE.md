@@ -11,9 +11,16 @@ needs a free Supabase project that only you can create (like the Groq key).
 - **pgvector** - embeddings of the user's own reflections for RAG memory.
 - **Storage** - food photos later.
 
-## Status
-- Project created; URL + anon key are in local.properties. Connectivity verified (auth health 200).
-- TWO dashboard actions remain (I can't do these with the anon key) before I can wire + test:
+## Status - LIVE
+- Project created; URL + anon key in local.properties. Auth verified.
+- Anonymous sign-ins enabled; email/password auth working (email confirmation is ON).
+- Tables `moods` / `foods` / `reflections` created with RLS; mood/food/reflection rows sync
+  end-to-end and are verified on device.
+- **Premium/admin** added on top: an `entitlements` table plus `premium_users` /
+  `user_progress` views and grant/revoke functions - full setup in `docs/ADMIN.md`.
+- Still open: two-way sync/restore on a new device, interrupt-stats sync, and pgvector RAG.
+
+The original setup steps are kept below for reference / rebuilding the project from scratch.
 
 ### Action 1 - enable anonymous sign-ins (1 toggle)
 Supabase Dashboard -> Authentication -> Sign In / Providers -> find **Anonymous Sign-Ins**
