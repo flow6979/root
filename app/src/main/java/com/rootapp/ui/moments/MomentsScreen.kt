@@ -64,6 +64,7 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
     var showDialog by remember { mutableStateOf(false) }
     var watchStatus by remember { mutableStateOf<String?>(null) }
     var nearest by remember { mutableStateOf<NearbyPlaces.Place?>(null) }
+    var nearbyList by remember { mutableStateOf<List<NearbyPlaces.Place>>(emptyList()) }
 
     fun refreshFoods() { foods = store.foods().reversed() }
 
@@ -78,11 +79,13 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
                     scope.launch {
                         val places = NearbyPlaces.findFoodSpots(loc.latitude, loc.longitude)
                         if (places.isEmpty()) {
-                            watchStatus = "No eating spots found nearby."
+                            watchStatus = "No eating spots within ~400m right now."
+                            nearbyList = emptyList()
                         } else {
                             geofence.registerNearby(places)
                             nearest = places.first()
-                            watchStatus = "Watching ${minOf(places.size, 5)} spots near you."
+                            nearbyList = places.take(5)
+                            watchStatus = "Watching the ${minOf(places.size, 5)} closest. I'll nudge you near one."
                         }
                     }
                 }
@@ -180,8 +183,8 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    if (nearest != null) "${nearest!!.distanceM}m away. Want to pause before you decide?"
-                    else "I'll find eating spots around you and nudge you before an impulse stop.",
+                    if (nearest != null) "Nearest: ${nearest!!.name}, ${nearest!!.distanceM}m away."
+                    else "Root finds restaurants and fast-food within about 400m of you, and nudges you when you walk near one.",
                     fontSize = 13.sp, color = palette.onSurface,
                 )
                 Spacer(Modifier.height(12.dp))
@@ -197,6 +200,13 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
                 watchStatus?.let {
                     Spacer(Modifier.height(8.dp))
                     Text(it, fontSize = 12.sp, color = palette.dim)
+                }
+                if (nearbyList.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    nearbyList.forEach { p ->
+                        Text("• ${p.name} · ${p.distanceM}m", fontSize = 12.sp, color = palette.onSurface,
+                            modifier = Modifier.padding(vertical = 2.dp))
+                    }
                 }
             }
         }

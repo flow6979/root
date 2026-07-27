@@ -41,6 +41,7 @@ import java.time.LocalDate
 fun HomeScreen(
     userName: String,
     onStartReflection: () -> Unit,
+    onTalk: () -> Unit = onStartReflection,
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalRootPalette.current
@@ -147,7 +148,7 @@ fun HomeScreen(
         }
         Spacer(Modifier.height(10.dp))
         androidx.compose.material3.OutlinedButton(
-            onClick = onStartReflection,
+            onClick = onTalk,
             modifier = Modifier.fillMaxWidth(),
         ) { Text("🎤 Talk to Root", fontSize = 15.sp, color = palette.accent) }
         Spacer(Modifier.height(8.dp))

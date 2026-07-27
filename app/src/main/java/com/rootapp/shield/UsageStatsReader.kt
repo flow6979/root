@@ -33,14 +33,20 @@ object UsageStatsReader {
     fun weeklyTotalMinutes(days: List<DayUsage>): Int = days.sumOf { it.minutes }
     fun dailyAverageMinutes(days: List<DayUsage>): Int = if (days.isEmpty()) 0 else weeklyTotalMinutes(days) / days.size
 
-    /** Top foreground apps over the last 7 days (excludes our own app + launchers). */
+    private val ignoredHints = listOf(
+        "launcher", "systemui", "com.android.settings", "inputmethod",
+        "com.google.android.gms", "permissioncontroller", "com.android.vending",
+    )
+    private fun isSystemish(pkg: String) = ignoredHints.any { pkg.contains(it) }
+
+    /** Top real foreground apps over the last 7 days (excludes our app, launchers, system UI). */
     fun topApps(context: Context, limit: Int = 3): List<AppUsage> {
         val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         val pm = context.packageManager
         val end = System.currentTimeMillis()
         val start = end - 7L * 24 * 60 * 60 * 1000
         return usm.queryAndAggregateUsageStats(start, end).values
-            .filter { it.totalTimeInForeground > 60000 && it.packageName != context.packageName }
+            .filter { it.totalTimeInForeground > 60000 && it.packageName != context.packageName && !isSystemish(it.packageName) }
             .sortedByDescending { it.totalTimeInForeground }
             .take(limit)
             .map { AppUsage(appLabel(pm, it.packageName), (it.totalTimeInForeground / 60000).toInt()) }
@@ -55,12 +61,23 @@ object UsageStatsReader {
         return if (h > 0) "${h}h ${m}m" else "${m}m"
     }
 
-    /** Short, real "Root's read" line from the data. */
+    /** A richer, real "Root's read" from the data (2-3 sentences). */
     fun read(days: List<DayUsage>, top: List<AppUsage>): String {
-        if (days.all { it.minutes == 0 }) return "Grant Usage access to see your real screen time."
+        if (days.all { it.minutes == 0 }) return "Grant Usage access and Root will read your real screen time here."
         val avg = dailyAverageMinutes(days)
-        val topApp = top.firstOrNull()
-        return if (topApp != null) "About ${fmt(avg)} a day on your phone. Most of it in ${topApp.label}."
-        else "About ${fmt(avg)} a day on your phone this week."
+        val busiest = days.maxByOrNull { it.minutes }
+        val sb = StringBuilder("About ${fmt(avg)} a day on your phone this week.")
+        val t1 = top.getOrNull(0); val t2 = top.getOrNull(1)
+        if (t1 != null) {
+            sb.append(" Most of it in ${t1.label} (${fmt(t1.minutes)})")
+            if (t2 != null) sb.append(", then ${t2.label}")
+            sb.append(".")
+        }
+        if (busiest != null && busiest.minutes > 0) {
+            sb.append(" Your heaviest day hit ${fmt(busiest.minutes)}.")
+        }
+        if (avg >= 180) sb.append(" That's a lot of hours you could get back.")
+        else if (avg in 1 until 90) sb.append(" That's a light, healthy week. Nice.")
+        return sb.toString()
     }
 }

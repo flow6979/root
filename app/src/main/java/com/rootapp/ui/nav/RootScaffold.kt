@@ -125,9 +125,16 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
                         HomeScreen(
                             userName = userName,
                             onStartReflection = { navController.navigate("reflection") },
+                            onTalk = { navController.navigate("voice") },
                         )
                     }
                     composable("reflection") { ReflectionScreen(userName = userName) }
+                    composable("voice") {
+                        com.rootapp.ui.voice.VoiceSessionScreen(
+                            userName = userName,
+                            onExit = { navController.popBackStack() },
+                        )
+                    }
                     composable(Tab.SHIELD.route) { ShieldScreen() }
                     composable(Tab.MOMENTS.route) { MomentsScreen() }
                     composable(Tab.STORIES.route) { StoriesScreen() }

@@ -1,6 +1,7 @@
 package com.rootapp.ui.shield
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,8 +10,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -97,22 +100,8 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         Text("Shield", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
-        Text("This week · screen time", fontSize = 12.sp, color = palette.dim)
+        Text("Your week, at a glance", fontSize = 12.sp, color = palette.dim)
         Spacer(Modifier.height(16.dp))
-
-        // ---- weekly chart ----
-        Card(shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = palette.surface),
-            modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text(if (hasUsage) dailyAvg else "—", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = palette.onSurface)
-                Text(if (hasUsage) "daily average this week" else "grant Usage access to see this",
-                    fontSize = 12.sp, color = palette.dim)
-                Spacer(Modifier.height(12.dp))
-                WeeklyBars(days, palette.accent, palette.accentSoft)
-            }
-        }
-        Spacer(Modifier.height(14.dp))
 
         // ---- Root's read (AI analysis) ----
         Card(shape = RoundedCornerShape(16.dp),
@@ -189,6 +178,42 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
             }
             Spacer(Modifier.height(14.dp))
         }
+
+        // ---- habits graphs ----
+        val moods = store.moods()
+        val foods = store.foods()
+        Text("HABITS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = palette.dim)
+        Spacer(Modifier.height(8.dp))
+        Card(shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = palette.surface),
+            modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Mood (recent)", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
+                Spacer(Modifier.height(8.dp))
+                MoodMiniBars(moods.takeLast(7).map { it.mood }, palette.accent, palette.accentSoft, palette.dim)
+                Spacer(Modifier.height(16.dp))
+                Text("Meals", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
+                Spacer(Modifier.height(8.dp))
+                FoodRatioBar(foods.count { it.healthy }, foods.count { !it.healthy }, palette.dim)
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+
+        // ---- screen time (bars) ----
+        Text("SCREEN TIME", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = palette.dim)
+        Spacer(Modifier.height(8.dp))
+        Card(shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = palette.surface),
+            modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text(if (hasUsage) dailyAvg else "—", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = palette.onSurface)
+                Text(if (hasUsage) "daily average this week" else "grant Usage access to see this",
+                    fontSize = 12.sp, color = palette.dim)
+                Spacer(Modifier.height(12.dp))
+                WeeklyBars(days, palette.accent, palette.accentSoft)
+            }
+        }
+        Spacer(Modifier.height(14.dp))
 
         // ---- Protection ----
         Text("PROTECTION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = palette.dim)
@@ -289,6 +314,39 @@ private fun AppToggle(name: String, detail: String, checked: Boolean, onChange: 
             Text(detail, fontSize = 12.sp, color = palette.dim)
         }
         Switch(checked = checked, onCheckedChange = onChange)
+    }
+}
+
+@Composable
+private fun MoodMiniBars(values: List<Int>, bar: Color, track: Color, dim: Color) {
+    if (values.isEmpty()) {
+        Text("No check-ins yet. Tap a mood on Home.", fontSize = 12.sp, color = dim); return
+    }
+    Row(
+        Modifier.fillMaxWidth().height(50.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        values.forEach { v ->
+            val frac = ((v + 1).coerceIn(1, 5)) / 5f
+            Box(
+                Modifier.weight(1f).fillMaxHeight(frac).clip(RoundedCornerShape(4.dp)).background(bar),
+            )
+        }
+        repeat(7 - values.size) { Box(Modifier.weight(1f).fillMaxHeight(0.12f).clip(RoundedCornerShape(4.dp)).background(track)) }
+    }
+}
+
+@Composable
+private fun FoodRatioBar(healthy: Int, junk: Int, dim: Color) {
+    if (healthy + junk == 0) { Text("No meals logged yet.", fontSize = 12.sp, color = dim); return }
+    Column {
+        Row(Modifier.fillMaxWidth().height(14.dp).clip(RoundedCornerShape(7.dp))) {
+            if (healthy > 0) Box(Modifier.weight(healthy.toFloat()).fillMaxHeight().background(Color(0xFF5FCF9E)))
+            if (junk > 0) Box(Modifier.weight(junk.toFloat()).fillMaxHeight().background(Color(0xFFE0954A)))
+        }
+        Spacer(Modifier.height(6.dp))
+        Text("$healthy healthy · $junk junk", fontSize = 12.sp, color = dim)
     }
 }
 
