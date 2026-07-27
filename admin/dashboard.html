@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Root · Admin</title>
+<style>
+  :root{
+    --bg1:#0A1E3C; --bg2:#0d2647; --surface:#152A4B; --surface2:#1b3358;
+    --line:#26426d; --text:#EAF1FB; --dim:#93A6C6; --accent:#5FA0E0;
+    --amber:#E0B15A; --green:#5FCf9e; --danger:#e07a63;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:linear-gradient(160deg,var(--bg1),#06101f);color:var(--text);min-height:100vh;padding:28px}
+  .wrap{max-width:1100px;margin:0 auto}
+  h1{font-size:26px;letter-spacing:-.3px}
+  h1 .orb{display:inline-block;width:22px;height:22px;border-radius:50%;
+    background:radial-gradient(circle at 35% 32%,#fff,var(--accent));vertical-align:-3px;margin-right:8px;
+    box-shadow:0 0 14px 2px rgba(95,160,224,.6)}
+  .sub{color:var(--dim);font-size:13px;margin-top:4px}
+  .warn{background:#3a2a12;border:1px solid #6a4d1e;color:#f0d9a8;font-size:12.5px;
+    padding:10px 14px;border-radius:10px;margin:16px 0}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+  label{display:block;font-size:12px;color:var(--dim);margin-bottom:6px;font-weight:600}
+  input{width:100%;background:var(--bg1);border:1px solid var(--line);color:var(--text);
+    border-radius:9px;padding:11px 12px;font-size:14px}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+  .row > div{flex:1;min-width:160px}
+  button{background:var(--accent);color:#06101f;border:none;border-radius:9px;
+    padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap}
+  button.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+  button.danger{background:transparent;color:var(--danger);border:1.5px solid var(--danger)}
+  .cards{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+  .stat{flex:1;min-width:150px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .stat .n{font-size:30px;font-weight:800}
+  .stat .l{font-size:12px;color:var(--dim);margin-top:2px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;
+    padding:10px 8px;border-bottom:1px solid var(--line)}
+  td{padding:10px 8px;border-bottom:1px solid #1d3860}
+  tr:hover td{background:var(--surface2)}
+  .uid{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--dim);cursor:pointer}
+  .pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px}
+  .pill.on{background:rgba(95,207,158,.15);color:var(--green)}
+  .pill.off{background:#22344f;color:var(--dim)}
+  .msg{font-size:13px;margin-top:10px;min-height:18px}
+  .msg.ok{color:var(--green)} .msg.err{color:var(--danger)}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1><span class="orb"></span>Root · Admin</h1>
+  <div class="sub">Local admin tool. Runs entirely in your browser against your Supabase project.</div>
+  <div class="warn">⚠️ This uses your Supabase <b>service_role key</b> (full database access). Only run this
+    file locally on your own machine. Never host it publicly and never share the key. The key is stored
+    only in this browser's localStorage.</div>
+
+  <div class="card">
+    <div class="row">
+      <div style="flex:2">
+        <label>Supabase URL</label>
+        <input id="url" value="https://vujynyactitusgwodbvb.supabase.co">
+      </div>
+      <div style="flex:3">
+        <label>service_role key (Supabase → Project Settings → API → service_role)</label>
+        <input id="key" type="password" placeholder="eyJ... (service_role)">
+      </div>
+      <div style="flex:0"><button id="connect">Connect</button></div>
+    </div>
+    <div id="connMsg" class="msg"></div>
+  </div>
+
+  <div class="cards" id="summary" style="display:none">
+    <div class="stat"><div class="n" id="sTotal">–</div><div class="l">Total users</div></div>
+    <div class="stat"><div class="n" id="sActive">–</div><div class="l">Active (7 days)</div></div>
+    <div class="stat"><div class="n" id="sPremium">–</div><div class="l">Premium users</div></div>
+    <div class="stat"><div class="n" id="sReflections">–</div><div class="l">Total reflections</div></div>
+  </div>
+
+  <div class="card" id="grantCard" style="display:none">
+    <label>Grant / revoke premium</label>
+    <div class="row">
+      <div style="flex:3"><input id="grantUid" placeholder="user UUID (click a row to fill)"></div>
+      <div style="flex:0;min-width:110px"><input id="grantDays" type="number" value="30"></div>
+      <div style="flex:0"><button id="grantBtn">Grant days</button></div>
+      <div style="flex:0"><button id="revokeBtn" class="danger">Revoke</button></div>
+    </div>
+    <div id="grantMsg" class="msg"></div>
+  </div>
+
+  <div class="card" id="usersCard" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <b>Users</b><button class="ghost" id="refresh">Refresh</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr>
+          <th>User</th><th>Joined</th><th>Last seen</th><th>Moods</th><th>Foods</th>
+          <th>Reflections</th><th>Premium until</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let URL_ = "", KEY_ = "";
+
+URL_ = localStorage.getItem("root_admin_url") || $("url").value;
+KEY_ = localStorage.getItem("root_admin_key") || "";
+$("url").value = URL_; $("key").value = KEY_;
+
+function headers(){ return { apikey: KEY_, Authorization: "Bearer " + KEY_, "Content-Type":"application/json" }; }
+
+async function api(path, opts={}){
+  const res = await fetch(URL_.replace(/\/$/,"") + path, { ...opts, headers: { ...headers(), ...(opts.headers||{}) }});
+  const text = await res.text();
+  if(!res.ok) throw new Error(res.status + ": " + text.slice(0,200));
+  return text ? JSON.parse(text) : null;
+}
+
+function fmtDate(s){ if(!s) return "—"; return new Date(s).toLocaleDateString([], {month:"short",day:"numeric"}); }
+function daysAgo(s){ if(!s) return Infinity; return (Date.now()-new Date(s).getTime())/86400000; }
+function msg(id,t,cls){ const el=$(id); el.textContent=t; el.className="msg "+cls; }
+function td(text){ const c=document.createElement("td"); c.textContent=text; return c; }
+
+async function load(){
+  const rows = await api("/rest/v1/user_progress?select=*&order=joined.desc");
+  const now = Date.now();
+  $("sTotal").textContent = rows.length;
+  $("sActive").textContent = rows.filter(r => daysAgo(r.last_seen) <= 7 || daysAgo(r.last_mood_at) <= 7).length;
+  $("sPremium").textContent = rows.filter(r => r.premium_until && new Date(r.premium_until).getTime() > now).length;
+  $("sReflections").textContent = rows.reduce((a,r)=>a+(r.reflections||0),0);
+
+  const tb = $("rows");
+  tb.replaceChildren();
+  for(const r of rows){
+    const active = r.premium_until && new Date(r.premium_until).getTime() > now;
+    const tr = document.createElement("tr");
+
+    const uidTd = document.createElement("td");
+    const uidSpan = document.createElement("span");
+    uidSpan.className = "uid"; uidSpan.title = "click to fill";
+    uidSpan.textContent = (r.user_id || "").slice(0,8) + "…";
+    uidSpan.addEventListener("click", () => { $("grantUid").value = r.user_id; });
+    uidTd.appendChild(uidSpan);
+    tr.appendChild(uidTd);
+
+    tr.appendChild(td(fmtDate(r.joined)));
+    tr.appendChild(td(fmtDate(r.last_seen)));
+    tr.appendChild(td(String(r.moods || 0)));
+    tr.appendChild(td(String(r.foods || 0)));
+    tr.appendChild(td(String(r.reflections || 0)));
+
+    const pTd = document.createElement("td");
+    const pill = document.createElement("span");
+    pill.className = "pill " + (active ? "on" : "off");
+    pill.textContent = active ? ("until " + fmtDate(r.premium_until)) : "free";
+    pTd.appendChild(pill);
+    tr.appendChild(pTd);
+
+    tb.appendChild(tr);
+  }
+}
+
+async function grant(days){
+  const uid = $("grantUid").value.trim();
+  if(!uid){ msg("grantMsg","Enter or click a user UUID","err"); return; }
+  const until = new Date(Date.now() + days*86400000).toISOString();
+  try{
+    await api("/rest/v1/entitlements?on_conflict=user_id", {
+      method:"POST",
+      headers:{ Prefer:"resolution=merge-duplicates" },
+      body: JSON.stringify([{ user_id: uid, premium_until: until }]),
+    });
+    msg("grantMsg", days>0 ? `Granted ${days} days` : "Revoked", "ok");
+    load();
+  }catch(e){ msg("grantMsg", e.message, "err"); }
+}
+
+$("connect").addEventListener("click", async () => {
+  URL_ = $("url").value.trim(); KEY_ = $("key").value.trim();
+  localStorage.setItem("root_admin_url", URL_);
+  localStorage.setItem("root_admin_key", KEY_);
+  try{
+    await load();
+    $("summary").style.display = "flex";
+    $("grantCard").style.display = "block";
+    $("usersCard").style.display = "block";
+    msg("connMsg","Connected.","ok");
+  }catch(e){ msg("connMsg", "Failed: "+e.message, "err"); }
+});
+$("refresh").addEventListener("click", load);
+$("grantBtn").addEventListener("click", () => grant(parseInt($("grantDays").value || "30", 10)));
+$("revokeBtn").addEventListener("click", () => grant(0));
+
+if(KEY_) $("connect").click();
+</script>
+</body>
+</html>
