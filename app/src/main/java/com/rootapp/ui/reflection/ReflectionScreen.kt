@@ -187,14 +187,19 @@ fun ReflectionScreen(
             if (last?.role == "assistant" && state.visible.size > lastSpoken) {
                 lastSpoken = state.visible.size
                 tts.language = Locale.getDefault()
-                tts.setPitch(0.9f)        // calmer, softer
-                tts.setSpeechRate(0.9f)   // slower, unhurried
+                tts.setPitch(0.85f)        // calmer, softer
+                tts.setSpeechRate(0.85f)   // slower, unhurried
+                tts.voices?.firstOrNull {
+                    it.locale.language == "en" && !it.isNetworkConnectionRequired &&
+                        it.quality >= android.speech.tts.Voice.QUALITY_HIGH
+                }?.let { tts.voice = it }
                 tts.speak(last.content, TextToSpeech.QUEUE_FLUSH, null, "root-${state.visible.size}")
             }
         }
     }
 
     Column(modifier = modifier.fillMaxSize().padding(horizontal = 14.dp)) {
+        Spacer(Modifier.height(16.dp))
         LazyColumn(
             state = listState,
             modifier = Modifier.weight(1f).fillMaxWidth(),

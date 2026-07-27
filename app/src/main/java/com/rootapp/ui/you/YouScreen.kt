@@ -122,7 +122,9 @@ fun YouScreen(
             colors = CardDefaults.cardColors(containerColor = palette.surface)) {
             Column(Modifier.padding(16.dp)) {
                 Text("Personality", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
-                Spacer(Modifier.height(8.dp))
+                Text("How Root talks to you in sessions. Gentle = warm and soft. Tough-love = direct and honest.",
+                    fontSize = 12.sp, color = palette.dim)
+                Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("Gentle", "Tough-love").forEach { p ->
                         FilterChip(selected = personality == p, onClick = { onPersonalityChange(p) },

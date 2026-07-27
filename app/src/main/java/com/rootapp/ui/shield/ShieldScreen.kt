@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -22,7 +23,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import com.rootapp.data.LocalStore
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -68,6 +73,19 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
     val dailyAvg = UsageStatsReader.fmt(UsageStatsReader.dailyAverageMinutes(days))
     val aiRead = UsageStatsReader.read(days, topApps)
 
+    val store = remember { LocalStore(context) }
+    val scope = rememberCoroutineScope()
+    var analysisTopic by remember { mutableStateOf<String?>(null) }
+    var analysisText by remember { mutableStateOf<String?>(null) }
+    var analyzing by remember { mutableStateOf(false) }
+    fun runAnalysis(topic: String, data: String) {
+        analysisTopic = topic; analyzing = true; analysisText = null
+        scope.launch {
+            analysisText = com.rootapp.ai.InsightAnalyzer.analyze(com.rootapp.di.AppModule.llmClient, topic, data)
+            analyzing = false
+        }
+    }
+
     val monitored = remember { MonitoredApps(context) }
     var igOn by remember { mutableStateOf(monitored.isMonitored("com.instagram.android")) }
     var ytOn by remember { mutableStateOf(monitored.isMonitored("com.google.android.youtube")) }
@@ -107,9 +125,70 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
                     aiRead,
                     fontSize = 13.sp, color = palette.onSurface,
                 )
+                Spacer(Modifier.height(12.dp))
+                Text("Dig deeper", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = palette.dim)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val moods = store.moods()
+                    val foods = store.foods()
+                    OutlinedButton(
+                        onClick = {
+                            runAnalysis(
+                                "Screen time",
+                                "Daily average: $dailyAvg. Top apps: " +
+                                    topApps.joinToString { "${it.label} ${UsageStatsReader.fmt(it.minutes)}" },
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) { Text("Screen", fontSize = 12.sp) }
+                    OutlinedButton(
+                        onClick = {
+                            runAnalysis(
+                                "Habits",
+                                "Mood check-ins: ${moods.size}. Meals logged: " +
+                                    "${foods.count { it.healthy }} healthy, ${foods.count { !it.healthy }} junk. " +
+                                    "Recent meals: ${foods.takeLast(5).joinToString { it.label }}",
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) { Text("Habits", fontSize = 12.sp) }
+                    OutlinedButton(
+                        onClick = {
+                            val mem = store.recentMemory(10)
+                            runAnalysis(
+                                "What you've shared",
+                                if (mem.isEmpty()) "No reflections yet." else "Things they've said: ${mem.joinToString("; ")}",
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) { Text("You", fontSize = 12.sp) }
+                }
             }
         }
         Spacer(Modifier.height(14.dp))
+
+        // ---- deep analysis result ----
+        if (analyzing || analysisText != null) {
+            Card(shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = palette.surface),
+                modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(analysisTopic ?: "Analysis", fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold, color = palette.accent)
+                    Spacer(Modifier.height(8.dp))
+                    if (analyzing) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.height(18.dp), color = palette.accent)
+                            Spacer(Modifier.width(10.dp))
+                            Text("Thinking it through…", fontSize = 13.sp, color = palette.dim)
+                        }
+                    } else {
+                        Text(analysisText ?: "", fontSize = 13.sp, color = palette.onSurface)
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+        }
 
         // ---- Protection ----
         Text("PROTECTION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = palette.dim)

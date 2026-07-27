@@ -135,8 +135,12 @@ fun StoriesScreen(modifier: Modifier = Modifier) {
                             tts.stop(); speaking = false
                         } else {
                             tts.language = java.util.Locale.getDefault()
-                            tts.setPitch(0.9f)
-                            tts.setSpeechRate(0.88f)
+                            tts.setPitch(0.85f)
+                            tts.setSpeechRate(0.85f)
+                            tts.voices?.firstOrNull {
+                                it.locale.language == "en" && !it.isNetworkConnectionRequired &&
+                                    it.quality >= android.speech.tts.Voice.QUALITY_HIGH
+                            }?.let { tts.voice = it }
                             tts.speak(s.body, TextToSpeech.QUEUE_FLUSH, null, "story-$index")
                             speaking = true
                         }

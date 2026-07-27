@@ -53,6 +53,15 @@ fun HomeScreen(
     var streak by remember { mutableIntStateOf(store.streak()) }
     var selectedMood by remember { mutableStateOf(store.todaysMood(today)) }
     val streakText = if (streak > 0) "Day $streak" else "Let's start today"
+    val hour = remember { java.time.LocalTime.now().hour }
+    val moodPrompt = remember(hour) {
+        when {
+            hour < 11 -> "How did you sleep?"
+            hour < 17 -> "How's your day going?"
+            hour < 22 -> "How's your evening?"
+            else -> "Winding down. How do you feel?"
+        }
+    }
 
     Column(
         modifier = modifier
@@ -84,7 +93,7 @@ fun HomeScreen(
                     .padding(vertical = 22.dp, horizontal = 18.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Orb(size = 72.dp)
+                Orb(size = 72.dp, interactive = true)
                 Spacer(Modifier.height(14.dp))
                 Text(
                     text = "Good to see you. Want to talk?",
@@ -102,8 +111,9 @@ fun HomeScreen(
             colors = CardDefaults.cardColors(containerColor = palette.surface),
         ) {
             Column(Modifier.padding(16.dp)) {
-                Text("How are you feeling right now?", fontSize = 15.sp,
+                Text(moodPrompt, fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold, color = palette.onSurface)
+                Text("One tap. Helps Root learn your rhythm.", fontSize = 12.sp, color = palette.dim)
                 Spacer(Modifier.height(12.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -135,6 +145,11 @@ fun HomeScreen(
         ) {
             Text("Start a reflection session", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         }
+        Spacer(Modifier.height(10.dp))
+        androidx.compose.material3.OutlinedButton(
+            onClick = onStartReflection,
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("🎤 Talk to Root", fontSize = 15.sp, color = palette.accent) }
         Spacer(Modifier.height(8.dp))
         Text(
             text = "5 min · just talk, I'll listen",
