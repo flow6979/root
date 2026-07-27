@@ -55,6 +55,22 @@ class ReflectionViewModelTest {
         assertFalse(vm.state.value.visible.any { it.role == "system" })
     }
 
+    @Test fun `past memory is injected into the system prompt and new messages are recorded`() = runTest {
+        val fake = FakeLlmClient("ok")
+        val recorded = mutableListOf<String>()
+        val vm = ReflectionViewModel(
+            fake, userName = "Sam",
+            pastMemory = "loves football; sleeps late",
+            onUserMessage = { recorded.add(it) },
+        )
+        vm.send("hi again")
+        advanceUntilIdle()
+
+        val system = fake.lastMessages!!.first { it.role == "system" }
+        assertTrue(system.content.contains("football"))
+        assertTrue(recorded.contains("hi again"))
+    }
+
     @Test fun `blank input is ignored`() = runTest {
         val vm = ReflectionViewModel(FakeLlmClient(), userName = "Sam")
         val before = vm.state.value.visible.size

@@ -19,9 +19,22 @@ val supabaseUrl: String = (localProps.getProperty("SUPABASE_URL")
 val supabaseAnonKey: String = (localProps.getProperty("SUPABASE_ANON_KEY")
     ?: System.getenv("SUPABASE_ANON_KEY") ?: "").trim()
 
+val releaseStoreFile: String? = localProps.getProperty("RELEASE_STORE_FILE")
+
 android {
     namespace = "com.rootapp"
     compileSdk = 34
+
+    signingConfigs {
+        if (releaseStoreFile != null && rootProject.file(releaseStoreFile).exists()) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFile)
+                storePassword = localProps.getProperty("RELEASE_STORE_PASSWORD")
+                keyAlias = localProps.getProperty("RELEASE_KEY_ALIAS")
+                keyPassword = localProps.getProperty("RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
 
     defaultConfig {
         applicationId = "com.rootapp"
@@ -39,6 +52,7 @@ android {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }
     compileOptions {

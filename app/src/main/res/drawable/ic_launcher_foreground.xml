@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- soft glow -->
+    <path android:pathData="M54,30 A24,24 0 1 0 54,78 A24,24 0 1 0 54,30 Z"
+        android:fillColor="#3F74C4" android:fillAlpha="0.35" />
+    <!-- the orb -->
+    <path android:pathData="M54,34 A20,20 0 1 0 54,74 A20,20 0 1 0 54,34 Z"
+        android:fillColor="#DCE9FA" />
+    <!-- highlight -->
+    <path android:pathData="M47,44 A7,7 0 1 0 47,58 A7,7 0 1 0 47,44 Z"
+        android:fillColor="#FFFFFF" android:fillAlpha="0.7" />
+</vector>

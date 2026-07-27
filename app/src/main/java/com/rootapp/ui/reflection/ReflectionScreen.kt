@@ -38,29 +38,41 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.platform.LocalContext
 import com.rootapp.ai.ChatMessage
 import com.rootapp.ai.LlmClient
+import com.rootapp.data.LocalStore
 import com.rootapp.di.AppModule
 import com.rootapp.ui.theme.LocalRootPalette
 
-/** Builds a ReflectionViewModel with our injected LlmClient. */
+/** Builds a ReflectionViewModel with our injected LlmClient + cross-session memory. */
 class ReflectionVMFactory(
     private val llm: LlmClient,
     private val userName: String,
+    private val pastMemory: String,
+    private val onUserMessage: (String) -> Unit,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-        ReflectionViewModel(llm, userName) as T
+        ReflectionViewModel(llm, userName, pastMemory, onUserMessage) as T
 }
 
 @Composable
 fun ReflectionScreen(
     userName: String,
     modifier: Modifier = Modifier,
-    vm: ReflectionViewModel = viewModel(
-        factory = ReflectionVMFactory(AppModule.llmClient, userName),
-    ),
 ) {
+    val context = LocalContext.current
+    val store = remember { LocalStore(context) }
+    val pastMemory = remember { store.recentMemory().joinToString("; ") }
+    val vm: ReflectionViewModel = viewModel(
+        factory = ReflectionVMFactory(
+            llm = AppModule.llmClient,
+            userName = userName,
+            pastMemory = pastMemory,
+            onUserMessage = { store.remember(it) },
+        ),
+    )
     val palette = LocalRootPalette.current
     val state by vm.state.collectAsStateWithLifecycle()
     var input by remember { mutableStateOf("") }

@@ -19,6 +19,8 @@ import kotlinx.coroutines.launch
 class ReflectionViewModel(
     private val llm: LlmClient,
     private val userName: String = "",
+    pastMemory: String = "",
+    private val onUserMessage: (String) -> Unit = {},
 ) : ViewModel() {
 
     data class UiState(
@@ -29,7 +31,7 @@ class ReflectionViewModel(
 
     // Full transcript incl. the hidden system prompt, sent to the model each turn.
     private val transcript = mutableListOf(
-        ChatMessage.system(Prompts.friendSystemPrompt(userName)),
+        ChatMessage.system(Prompts.friendSystemPrompt(userName, pastMemory.ifBlank { null })),
         ChatMessage.assistant(Prompts.opener(userName)),
     )
 
@@ -41,6 +43,7 @@ class ReflectionViewModel(
         if (text.isEmpty() || _state.value.sending) return
 
         transcript += ChatMessage.user(text)
+        onUserMessage(text)
         Track.event(Events.REFLECTION_MESSAGE_SENT)
         _state.value = _state.value.copy(
             visible = visibleFrom(transcript),

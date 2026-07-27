@@ -2,6 +2,7 @@ package com.rootapp.data
 
 import android.content.Context
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
 /**
@@ -41,6 +42,23 @@ class LocalStore(context: Context) {
         prefs.edit().putString(FOODS, encode(list, FoodEntry.serializer())).apply()
     }
 
+    // ---- reflection memory (what the friend remembers across sessions) ----
+    fun memory(): List<String> {
+        val s = prefs.getString(MEMORY, null)
+        return if (s.isNullOrBlank()) emptyList()
+        else runCatching { json.decodeFromString(ListSerializer(String.serializer()), s) }.getOrDefault(emptyList())
+    }
+
+    /** Remember a thing the user said; keeps only the most recent [cap]. */
+    fun remember(text: String, cap: Int = 30) {
+        val clean = text.trim()
+        if (clean.isEmpty()) return
+        val list = (memory() + clean).takeLast(cap)
+        prefs.edit().putString(MEMORY, json.encodeToString(ListSerializer(String.serializer()), list)).apply()
+    }
+
+    fun recentMemory(limit: Int = 6): List<String> = memory().takeLast(limit)
+
     // ---- interrupt stats ----
     fun incInterruptShown() = prefs.edit().putInt(I_SHOWN, prefs.getInt(I_SHOWN, 0) + 1).apply()
     fun incInterruptPaused() = prefs.edit().putInt(I_PAUSED, prefs.getInt(I_PAUSED, 0) + 1).apply()
@@ -62,5 +80,6 @@ class LocalStore(context: Context) {
         private const val LAST_DAY = "last_checkin_day"
         private const val I_SHOWN = "interrupt_shown"
         private const val I_PAUSED = "interrupt_paused"
+        private const val MEMORY = "memory_msgs"
     }
 }
