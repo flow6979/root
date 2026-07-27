@@ -85,23 +85,24 @@ fun RootTheme(
     content: @Composable () -> Unit,
 ) {
     val palette = if (minimalist) minimalistPalette(timeOfDay) else paletteFor(timeOfDay)
-    val scheme = if (palette.dark) {
-        darkColorScheme(
-            primary = palette.accent,
-            background = palette.bg2,
-            surface = palette.surface,
-            onSurface = palette.onSurface,
-            onBackground = palette.onSurface,
-        )
-    } else {
-        lightColorScheme(
-            primary = palette.accent,
-            background = palette.bg2,
-            surface = palette.surface,
-            onSurface = palette.onSurface,
-            onBackground = palette.onSurface,
-        )
-    }
+    val onAccent = if (palette.dark) Color(0xFF06101F) else Color.White
+    val base = if (palette.dark) darkColorScheme() else lightColorScheme()
+    val scheme = base.copy(
+        primary = palette.accent,
+        onPrimary = onAccent,
+        primaryContainer = palette.accentSoft,
+        onPrimaryContainer = palette.onSurface,
+        secondaryContainer = palette.accentSoft,
+        onSecondaryContainer = palette.accent,
+        background = palette.bg2,
+        onBackground = palette.onSurface,
+        surface = palette.surface,
+        onSurface = palette.onSurface,
+        surfaceVariant = palette.surface,
+        onSurfaceVariant = palette.dim,
+        outline = palette.dim,
+        outlineVariant = palette.dim,
+    )
     CompositionLocalProvider(LocalRootPalette provides palette) {
         MaterialTheme(colorScheme = scheme, content = content)
     }

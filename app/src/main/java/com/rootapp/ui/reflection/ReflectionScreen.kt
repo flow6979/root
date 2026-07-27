@@ -27,6 +27,13 @@ import android.speech.tts.TextToSpeech
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Mic
@@ -177,32 +184,34 @@ fun ReflectionScreen(
             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(
-                onClick = {
-                    if (premium) startListening()
-                    else Toast.makeText(context, "Voice is a premium feature", Toast.LENGTH_SHORT).show()
-                },
-                enabled = !state.sending,
-            ) {
-                Icon(Icons.Filled.Mic, contentDescription = "Talk",
-                    tint = if (premium) palette.accent else palette.dim)
-            }
+            val onAccent = if (palette.dark) Color(0xFF06101F) else Color.White
+            // Mic (always visible; premium-gated action)
+            Box(
+                Modifier.size(48.dp).clip(CircleShape).background(palette.accent)
+                    .clickable(enabled = !state.sending) {
+                        if (premium) startListening()
+                        else Toast.makeText(context, "Voice is a premium feature", Toast.LENGTH_SHORT).show()
+                    },
+                contentAlignment = Alignment.Center,
+            ) { Icon(Icons.Filled.Mic, contentDescription = "Talk", tint = onAccent) }
+            Spacer(Modifier.width(8.dp))
             OutlinedTextField(
                 value = input,
                 onValueChange = { input = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text(if (premium) "Type or tap the mic" else "Say whatever's on your mind…") },
+                placeholder = { Text(if (premium) "Type or tap the mic" else "Say what's on your mind") },
                 enabled = !state.sending,
             )
-            IconButton(
-                onClick = {
-                    voiceMode = false
-                    vm.send(input)
-                    input = ""
-                },
-                enabled = input.isNotBlank() && !state.sending,
+            Spacer(Modifier.width(8.dp))
+            val canSend = input.isNotBlank() && !state.sending
+            Box(
+                Modifier.size(48.dp).clip(CircleShape)
+                    .background(if (canSend) palette.accent else palette.surface)
+                    .clickable(enabled = canSend) { voiceMode = false; vm.send(input); input = "" },
+                contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send",
+                    tint = if (canSend) onAccent else palette.dim)
             }
         }
     }
