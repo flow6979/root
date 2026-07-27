@@ -22,7 +22,11 @@ class InterruptOverlay(context: Context) {
 
     val isShowing: Boolean get() = view != null
 
-    fun show(appLabel: String, onPause: () -> Unit, onProceed: () -> Unit) {
+    /** Convenience for the app-block case. */
+    fun showForApp(appLabel: String, onPause: () -> Unit, onProceed: () -> Unit) =
+        show("Hey — you opened $appLabel.", "Want to sit with me for 60 seconds instead?", onPause, onProceed)
+
+    fun show(titleText: String, subtitleText: String, onPause: () -> Unit, onProceed: () -> Unit) {
         if (view != null) return
 
         val root = LinearLayout(appCtx).apply {
@@ -36,12 +40,12 @@ class InterruptOverlay(context: Context) {
             setTextColor(Color.parseColor("#DCE9FA")); textSize = 56f; gravity = Gravity.CENTER
         }
         val title = TextView(appCtx).apply {
-            text = "Hey — you opened $appLabel."
+            text = titleText
             setTextColor(Color.WHITE); textSize = 22f; gravity = Gravity.CENTER
             setPadding(0, 40, 0, 16)
         }
         val msg = TextView(appCtx).apply {
-            text = "Want to sit with me for 60 seconds instead?"
+            text = subtitleText
             setTextColor(Color.parseColor("#C4D3EA")); textSize = 15f; gravity = Gravity.CENTER
             setPadding(0, 0, 0, 56)
         }

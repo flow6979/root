@@ -10,6 +10,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -32,9 +36,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rootapp.analytics.Events
 import com.rootapp.analytics.Track
+import androidx.core.content.ContextCompat
+import com.google.android.gms.location.LocationServices
 import com.rootapp.data.FoodEntry
 import com.rootapp.data.LocalStore
 import com.rootapp.data.SupabaseRepository
+import com.rootapp.location.GeofenceManager
 import com.rootapp.ui.theme.LocalRootPalette
 import kotlinx.coroutines.launch
 
@@ -44,9 +51,33 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val store = remember { LocalStore(context) }
     val supabase = remember { SupabaseRepository(context) }
+    val geofence = remember { GeofenceManager(context) }
     val scope = rememberCoroutineScope()
     var foods by remember { mutableStateOf(store.foods().reversed()) }
     var showDialog by remember { mutableStateOf(false) }
+    var watchStatus by remember { mutableStateOf<String?>(null) }
+
+    @Suppress("MissingPermission")
+    fun setWatchSpot() {
+        try {
+            LocationServices.getFusedLocationProviderClient(context).lastLocation
+                .addOnSuccessListener { loc ->
+                    if (loc != null) {
+                        geofence.registerFoodSpot(loc.latitude, loc.longitude) { ok ->
+                            watchStatus = if (ok) "Watching this area for you" else "Couldn't set the watch spot"
+                        }
+                    } else {
+                        watchStatus = "No location yet — move a little and retry"
+                    }
+                }
+        } catch (e: SecurityException) {
+            watchStatus = "Location permission needed"
+        }
+    }
+
+    val locationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted -> if (granted) setWatchSpot() else watchStatus = "Location permission needed" }
 
     Column(
         modifier = modifier.fillMaxWidth().verticalScroll(rememberScrollState())
@@ -63,10 +94,23 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
                 Text("📍 Near a food spot", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = palette.accent)
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "When location is on, Root gently nudges you before an impulse food stop. " +
-                        "(Geofencing needs the location permission - coming with onboarding.)",
+                    "Root nudges you before an impulse food stop when you're near a spot you're watching.",
                     fontSize = 13.sp, color = palette.onSurface,
                 )
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = {
+                        val granted = ContextCompat.checkSelfPermission(
+                            context, Manifest.permission.ACCESS_FINE_LOCATION,
+                        ) == PackageManager.PERMISSION_GRANTED
+                        if (granted) setWatchSpot() else locationLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("📍 Set a watch spot here") }
+                watchStatus?.let {
+                    Spacer(Modifier.height(8.dp))
+                    Text(it, fontSize = 12.sp, color = palette.dim)
+                }
             }
         }
         Spacer(Modifier.height(16.dp))

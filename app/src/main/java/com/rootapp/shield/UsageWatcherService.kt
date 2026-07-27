@@ -74,7 +74,7 @@ class UsageWatcherService : Service() {
                 LocalStore(this).incInterruptShown()
                 Track.event(Events.INTERRUPT_SHOWN)
                 main.post {
-                    overlay.show(
+                    overlay.showForApp(
                         appLabel = label,
                         onPause = {
                             LocalStore(this).incInterruptPaused()

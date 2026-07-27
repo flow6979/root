@@ -139,7 +139,7 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
                     Spacer(Modifier.height(10.dp))
                     OutlinedButton(
                         onClick = {
-                            InterruptOverlay(context).show(
+                            InterruptOverlay(context).showForApp(
                                 appLabel = "Instagram", onPause = {}, onProceed = {},
                             )
                         },
