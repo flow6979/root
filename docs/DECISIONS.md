@@ -74,6 +74,15 @@ inherit the "why" instead of re-litigating. Newest at the bottom of each section
 - **D21. [REVISED] Voice: on-device Android SpeechRecognizer (STT) + on-device Android
   TextToSpeech (TTS)** - both free, no cloud cost. Premium "nicer voice" can use a cloud TTS
   later; base narration stays free.
+- **D25. Shield uses UsageStatsManager + SYSTEM_ALERT_WINDOW overlay, NOT
+  AccessibilityService.** REASON (see docs/SHIELD_RESEARCH.md): Android has no official
+  third-party app-blocking API. AccessibilityService carries high Play Store policy risk
+  (isAccessibilityTool is disallowed for wellbeing/monitoring apps; requires Permission
+  Declaration Form + prominent disclosure + consent; misuse = suspension/account
+  termination). UsageStatsManager ("Usage access") + overlay + foreground service gives a
+  sub-second detection delay that is fine for a gentle "pause" nudge, at LOW policy risk.
+  Revisit AccessibilityService only if instant blocking proves necessary, with full
+  declaration/disclosure/consent.
 - **D24. Cost principle: prefer free / lowest-cost tiers everywhere** (Supabase free tier,
   free LLM tiers, on-device voice) until free limits are hit and revenue covers the overage.
   Running cost at launch target ~$0.
