@@ -8,9 +8,11 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import java.time.OffsetDateTime
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -47,6 +49,26 @@ class SupabaseRepository(context: Context) {
     }
 
     val userId: String? get() = prefs.getString(USER_ID, null)
+
+    /** True if the server has granted this user premium that hasn't expired. */
+    suspend fun isPremiumFromServer(): Boolean = withContext(Dispatchers.IO) {
+        val token = ensureSession() ?: return@withContext false
+        val req = Request.Builder()
+            .url("$baseUrl/rest/v1/entitlements?select=premium_until&limit=1")
+            .addHeader("apikey", anonKey)
+            .addHeader("Authorization", "Bearer $token")
+            .get()
+            .build()
+        runCatching {
+            http.newCall(req).execute().use { r ->
+                if (!r.isSuccessful) return@use false
+                val arr = json.parseToJsonElement(r.body?.string().orEmpty()).jsonArray
+                val until = arr.firstOrNull()?.jsonObject?.get("premium_until")?.jsonPrimitive?.content
+                    ?: return@use false
+                OffsetDateTime.parse(until).toInstant().toEpochMilli() > System.currentTimeMillis()
+            }
+        }.getOrElse { Log.w("Supabase", "entitlement check failed: ${it.message}"); false }
+    }
 
     // ---- pushes (fire-and-forget; caller launches on a coroutine) ----
     suspend fun pushMood(epochDay: Long, mood: Int) =
