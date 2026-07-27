@@ -94,25 +94,42 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
         ActivityResultContracts.RequestPermission(),
     ) { granted -> if (granted) findNearby() else watchStatus = "Location permission needed" }
 
-    // Voice food logging (premium): speak a meal, we log it.
-    val foodVoiceLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
-        val spoken = res.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-        if (!spoken.isNullOrBlank()) {
-            val junk = listOf("burger", "pizza", "fries", "soda", "coke", "chips", "candy", "fried", "ice cream", "donut")
-            val healthy = junk.none { spoken.lowercase().contains(it) }
-            store.addFood(spoken, healthy, System.currentTimeMillis())
-            refreshFoods()
-            scope.launch { supabase.pushFood(spoken, healthy) }
-            Track.event(Events.FOOD_LOGGED, mapOf("healthy" to healthy, "source" to "voice"))
-        }
+    // Voice food logging (premium) via Groq Whisper. No Google dependency.
+    val voiceRecorder = remember { com.rootapp.voice.VoiceRecorder(context) }
+    var foodRecording by remember { mutableStateOf(false) }
+    var foodSaving by remember { mutableStateOf(false) }
+    fun logSpoken(text: String) {
+        val junk = listOf("burger", "pizza", "fries", "soda", "coke", "chips", "candy", "fried", "ice cream", "donut")
+        val healthy = junk.none { text.lowercase().contains(it) }
+        store.addFood(text, healthy, System.currentTimeMillis())
+        refreshFoods()
+        scope.launch { supabase.pushFood(text, healthy) }
+        Track.event(Events.FOOD_LOGGED, mapOf("healthy" to healthy, "source" to "voice"))
+    }
+    val recordPermFood = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) { if (voiceRecorder.start()) foodRecording = true }
+        else Toast.makeText(context, "Microphone permission needed", Toast.LENGTH_SHORT).show()
     }
     val logByVoice = {
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_PROMPT, "What did you eat?")
+        if (foodRecording) {
+            foodRecording = false
+            val f = voiceRecorder.stop()
+            if (f != null) {
+                foodSaving = true
+                scope.launch {
+                    val text = com.rootapp.ai.GroqTranscriber.transcribe(f)
+                    foodSaving = false
+                    if (!text.isNullOrBlank()) logSpoken(text)
+                    else Toast.makeText(context, "Didn't catch that.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        } else {
+            val hasPerm = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.RECORD_AUDIO,
+            ) == PackageManager.PERMISSION_GRANTED
+            if (hasPerm) { if (voiceRecorder.start()) foodRecording = true }
+            else recordPermFood.launch(Manifest.permission.RECORD_AUDIO)
         }
-        runCatching { foodVoiceLauncher.launch(intent) }
-            .onFailure { Toast.makeText(context, "No speech recognizer on this device", Toast.LENGTH_SHORT).show() }
         Unit
     }
 
@@ -184,7 +201,16 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
                 else Toast.makeText(context, "Voice logging is a premium feature", Toast.LENGTH_SHORT).show()
             },
             modifier = Modifier.fillMaxWidth(),
-        ) { Text(if (premium) "🎤 Log by voice" else "🎤 Log by voice (Premium)") }
+        ) {
+            Text(
+                when {
+                    !premium -> "🎤 Log by voice (Premium)"
+                    foodSaving -> "Saving…"
+                    foodRecording -> "⏹ Stop & save"
+                    else -> "🎤 Log by voice"
+                },
+            )
+        }
         Spacer(Modifier.height(24.dp))
     }
 

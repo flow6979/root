@@ -25,7 +25,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
+import android.speech.tts.TextToSpeech
+import android.widget.Toast
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -59,9 +62,13 @@ fun StoriesScreen(modifier: Modifier = Modifier) {
     val stories = remember { mutableStateListOf<StoryGenerator.Story>() }
     var index by remember { mutableIntStateOf(0) }
     var loading by remember { mutableStateOf(false) }
+    var speaking by remember { mutableStateOf(false) }
+    val tts = remember { TextToSpeech(context) {} }
+    DisposableEffect(Unit) { onDispose { tts.stop(); tts.shutdown() } }
 
     // Generate the current story on demand (AI). Finite: TOTAL per day.
     LaunchedEffect(index) {
+        tts.stop(); speaking = false
         if (index < TOTAL && index >= stories.size) {
             loading = true
             stories.add(StoryGenerator.generate(AppModule.llmClient, index))
@@ -120,10 +127,29 @@ fun StoriesScreen(modifier: Modifier = Modifier) {
             )
             Spacer(Modifier.height(14.dp))
             Box(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(100)).background(Color(0x33000000)).padding(12.dp),
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(100)).background(Color(0x33000000))
+                    .clickable {
+                        if (!premium) {
+                            Toast.makeText(context, "Story audio is a premium feature", Toast.LENGTH_SHORT).show()
+                        } else if (speaking) {
+                            tts.stop(); speaking = false
+                        } else {
+                            tts.language = java.util.Locale.getDefault()
+                            tts.speak(s.body, TextToSpeech.QUEUE_FLUSH, null, "story-$index")
+                            speaking = true
+                        }
+                    }
+                    .padding(12.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(if (premium) "🎧 Listen" else "🎧 Listen · Premium", color = AMBER, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    when {
+                        !premium -> "🎧 Listen · Premium"
+                        speaking -> "⏹ Stop"
+                        else -> "🎧 Listen"
+                    },
+                    color = AMBER, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                )
             }
             Spacer(Modifier.height(12.dp))
             Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(100)).background(AMBER).padding(13.dp).clickable { index++ },

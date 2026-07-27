@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.runtime.DisposableEffect
 import java.util.Locale
 import androidx.compose.runtime.Composable
@@ -118,17 +119,34 @@ fun ReflectionScreen(
     DisposableEffect(Unit) { onDispose { tts.stop(); tts.shutdown() } }
     var voiceMode by remember { mutableStateOf(false) }
     var lastSpoken by remember { mutableIntStateOf(0) }
-    val speechLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
-        val spoken = res.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
-        if (!spoken.isNullOrBlank()) { voiceMode = true; vm.send(spoken) }
+    // Voice capture via Groq Whisper (record on device -> transcribe). No Google dependency.
+    val recorder = remember { com.rootapp.voice.VoiceRecorder(context) }
+    var recording by remember { mutableStateOf(false) }
+    var transcribing by remember { mutableStateOf(false) }
+    val recordPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) { if (recorder.start()) recording = true }
+        else Toast.makeText(context, "Microphone permission needed", Toast.LENGTH_SHORT).show()
     }
-    val startListening = {
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_PROMPT, "Talk to Root")
+    val toggleVoice = {
+        if (recording) {
+            recording = false
+            val f = recorder.stop()
+            if (f != null) {
+                transcribing = true
+                bgScope.launch {
+                    val text = com.rootapp.ai.GroqTranscriber.transcribe(f)
+                    transcribing = false
+                    if (!text.isNullOrBlank()) { voiceMode = true; vm.send(text) }
+                    else Toast.makeText(context, "Didn't catch that. Try again.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        } else {
+            val hasPerm = androidx.core.content.ContextCompat.checkSelfPermission(
+                context, android.Manifest.permission.RECORD_AUDIO,
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (hasPerm) { if (recorder.start()) recording = true }
+            else recordPerm.launch(android.Manifest.permission.RECORD_AUDIO)
         }
-        runCatching { speechLauncher.launch(intent) }
-            .onFailure { Toast.makeText(context, "No speech recognizer on this device", Toast.LENGTH_SHORT).show() }
         Unit
     }
     val palette = LocalRootPalette.current
@@ -185,15 +203,26 @@ fun ReflectionScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val onAccent = if (palette.dark) Color(0xFF06101F) else Color.White
-            // Mic (always visible; premium-gated action)
+            // Mic (always visible; records + transcribes via Groq). Red while recording.
+            val micBg = if (recording) Color(0xFFD0563F) else palette.accent
             Box(
-                Modifier.size(48.dp).clip(CircleShape).background(palette.accent)
-                    .clickable(enabled = !state.sending) {
-                        if (premium) startListening()
+                Modifier.size(48.dp).clip(CircleShape).background(micBg)
+                    .clickable(enabled = !state.sending && !transcribing) {
+                        if (premium) toggleVoice()
                         else Toast.makeText(context, "Voice is a premium feature", Toast.LENGTH_SHORT).show()
                     },
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Filled.Mic, contentDescription = "Talk", tint = onAccent) }
+            ) {
+                if (transcribing) {
+                    CircularProgressIndicator(strokeWidth = 2.dp, color = onAccent, modifier = Modifier.size(20.dp))
+                } else {
+                    Icon(
+                        if (recording) Icons.Filled.Stop else Icons.Filled.Mic,
+                        contentDescription = if (recording) "Stop" else "Talk",
+                        tint = onAccent,
+                    )
+                }
+            }
             Spacer(Modifier.width(8.dp))
             OutlinedTextField(
                 value = input,
