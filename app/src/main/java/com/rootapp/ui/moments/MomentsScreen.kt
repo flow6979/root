@@ -34,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -80,13 +81,13 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
                     scope.launch {
                         val places = NearbyPlaces.findFoodSpots(loc.latitude, loc.longitude)
                         if (places.isEmpty()) {
-                            watchStatus = "No eating spots within ~400m right now."
+                            watchStatus = "Couldn't find eating spots nearby. Check location is on."
                             nearbyList = emptyList()
                         } else {
                             geofence.registerNearby(places)
                             nearest = places.first()
-                            nearbyList = places.take(5)
-                            watchStatus = "Watching the ${minOf(places.size, 5)} closest. I'll nudge you near one."
+                            nearbyList = places.take(8)
+                            watchStatus = "Found ${places.size}. Watching the closest, I'll nudge you near one."
                         }
                     }
                 }
@@ -185,7 +186,7 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
                 Spacer(Modifier.height(6.dp))
                 Text(
                     if (nearest != null) "Nearest: ${nearest!!.name}, ${nearest!!.distanceM}m away."
-                    else "Root finds restaurants and fast-food within about 400m of you, and nudges you when you walk near one.",
+                    else "Root finds restaurants and fast-food near you, tags the junk ones, and nudges you when you walk near one.",
                     fontSize = 13.sp, color = palette.onSurface,
                 )
                 Spacer(Modifier.height(12.dp))
@@ -203,10 +204,18 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
                     Text(it, fontSize = 12.sp, color = palette.dim)
                 }
                 if (nearbyList.isNotEmpty()) {
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(10.dp))
                     nearbyList.forEach { p ->
-                        Text("• ${p.name} · ${p.distanceM}m", fontSize = 12.sp, color = palette.onSurface,
-                            modifier = Modifier.padding(vertical = 2.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 3.dp)) {
+                            Text(if (p.isJunk) "🍔" else "🍽", fontSize = 14.sp)
+                            Text("  ${p.name} · ${p.distanceM}m", fontSize = 12.sp, color = palette.onSurface,
+                                modifier = Modifier.weight(1f))
+                            Text(
+                                if (p.isJunk) "avoid" else p.healthLabel,
+                                fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                                color = if (p.isJunk) Color(0xFFD0563F) else palette.accent,
+                            )
+                        }
                     }
                 }
             }

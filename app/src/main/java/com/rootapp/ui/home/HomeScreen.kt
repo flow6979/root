@@ -14,6 +14,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.foundation.clickable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -97,8 +99,9 @@ fun HomeScreen(
         Spacer(Modifier.height(16.dp))
 
         // ---- wellbeing score ----
+        var showScoreInfo by remember { mutableStateOf(false) }
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().clickable { showScoreInfo = true },
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = palette.surface),
         ) {
@@ -110,7 +113,7 @@ fun HomeScreen(
                     Text("Wellbeing score", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
                     Text(
                         if (wellbeing == null) "Check in and log to build your score"
-                        else com.rootapp.data.Scores.label(wellbeing) + " · from mood, meals" + if (screenScore != null) ", screen time" else "",
+                        else com.rootapp.data.Scores.label(wellbeing) + " · tap to see how",
                         fontSize = 12.sp, color = palette.dim,
                     )
                 }
@@ -118,6 +121,29 @@ fun HomeScreen(
             }
         }
         Spacer(Modifier.height(14.dp))
+
+        if (showScoreInfo) {
+            AlertDialog(
+                onDismissRequest = { showScoreInfo = false },
+                confirmButton = { TextButton(onClick = { showScoreInfo = false }) { Text("Got it") } },
+                title = { Text("How your score works") },
+                text = {
+                    Column {
+                        Text("It's the average of what we can measure right now, each out of 100:", fontSize = 13.sp)
+                        Spacer(Modifier.height(10.dp))
+                        Text("• Mood: ${moodScore?.let { "$it" } ?: "—"}  (from your check-ins)", fontSize = 13.sp)
+                        Text("• Eating: ${eatingScore?.let { "$it" } ?: "—"}  (share of healthy meals)", fontSize = 13.sp)
+                        Text("• Screen time: ${screenScore?.let { "$it" } ?: "—"}  (less is better)", fontSize = 13.sp)
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            "Overall: ${wellbeing?.let { "$it/100" } ?: "not enough data yet"}. " +
+                                "As you check in, log meals, and grant Usage access, it gets more accurate.",
+                            fontSize = 13.sp,
+                        )
+                    }
+                },
+            )
+        }
 
         Card(
             modifier = Modifier.fillMaxWidth(),
