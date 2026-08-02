@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.MediaPlayer
 import android.util.Log
 import com.rootapp.BuildConfig
+import com.rootapp.ai.Proxy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -42,13 +43,31 @@ object CloudTts {
 
     suspend fun play(context: Context, text: String, onDone: () -> Unit = {}): Boolean = withContext(Dispatchers.IO) {
         if (text.isBlank()) return@withContext false
-        // Agent 1: ElevenLabs
+        // Agent 1: our proxy's ElevenLabs voice (no key in the app)
+        if (Proxy.enabled) {
+            fetchProxy(text)?.let { return@withContext playBytes(context, it, onDone) }
+        }
+        // Agent 2: ElevenLabs directly (dev builds with a baked key)
         if (BuildConfig.ELEVENLABS_API_KEY.isNotBlank()) {
             fetchEleven(text)?.let { return@withContext playBytes(context, it, onDone) }
         }
-        // Agent 2: Google Translate TTS (free, no key)
+        // Agent 3: Google Translate TTS (free, no key)
         fetchGoogle(text)?.let { return@withContext playBytes(context, it, onDone) }
         false
+    }
+
+    private fun fetchProxy(text: String): ByteArray? {
+        val payload = buildJsonObject { put("text", text.take(2500)) }
+        val req = Request.Builder()
+            .url(Proxy.baseUrl + "/tts")
+            .apply { Proxy.headers().forEach { (k, v) -> addHeader(k, v) } }
+            .post(json.encodeToString(JsonObject.serializer(), payload).toRequestBody(jsonMedia))
+            .build()
+        return runCatching {
+            http.newCall(req).execute().use { r ->
+                if (r.isSuccessful) r.body?.bytes() else { Log.w("CloudTts", "proxy-tts ${r.code}"); null }
+            }
+        }.getOrElse { Log.w("CloudTts", "proxy-tts failed: ${it.message}"); null }
     }
 
     private fun fetchEleven(text: String): ByteArray? {

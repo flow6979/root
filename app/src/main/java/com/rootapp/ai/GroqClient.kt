@@ -21,13 +21,16 @@ class GroqClient(
     private val model: String = "llama-3.1-8b-instant",
     private val baseUrl: String = "https://api.groq.com/openai/v1/",
     private val http: OkHttpClient = OkHttpClient(),
+    // Extra headers (e.g. the proxy app token). When going through our proxy, it injects the
+    // real key, so the Authorization header we send is ignored.
+    private val extraHeaders: Map<String, String> = emptyMap(),
 ) : LlmClient {
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     private val jsonMedia = "application/json; charset=utf-8".toMediaType()
 
     override suspend fun complete(messages: List<ChatMessage>): String = withContext(Dispatchers.IO) {
-        require(apiKey.isNotBlank()) { "GROQ_API_KEY is missing. Set it in local.properties." }
+        require(apiKey.isNotBlank()) { "No AI key or proxy configured." }
 
         val payload = ChatRequest(
             model = model,
@@ -38,6 +41,7 @@ class GroqClient(
         val request = Request.Builder()
             .url(url)
             .addHeader("Authorization", "Bearer $apiKey")
+            .apply { extraHeaders.forEach { (k, v) -> addHeader(k, v) } }
             .post(body)
             .build()
 

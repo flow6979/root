@@ -65,7 +65,8 @@ class GroqClientTest {
             }
             fail("expected IllegalArgumentException")
         } catch (e: IllegalArgumentException) {
-            assertTrue(e.message!!.contains("GROQ_API_KEY"))
+            // With no key and no proxy configured, the client refuses to send a request.
+            assertTrue(e.message!!.contains("No AI key or proxy"))
         }
     }
 }

@@ -76,10 +76,11 @@ HTTPS traffic. So the rule is **don't ship a secret you can't afford to be publi
   APK is safe to attach to a public release (this is what the GitHub release APK is built
   with). In that build, AI needs the user's own Gemini key (You -> AI) or falls back to
   offline demo; voice uses the free no-key TTS.
-- **To keep built-in AI while public:** run a thin **backend proxy** you control (Cloudflare
-  Workers or Supabase Edge Functions, both free) that holds the Groq/ElevenLabs keys as
-  server secrets. The app calls the proxy URL (not a secret) and the proxy adds the key and
-  forwards the request - so you can also rate-limit, rotate keys without a new app release,
+- **To keep built-in AI while public:** run the thin **backend proxy** in `proxy/` (a free
+  Cloudflare Worker) that holds the Groq/ElevenLabs keys as server secrets. Deploy it
+  (`proxy/README.md`), set `PROXY_BASE_URL` in `local.properties`, and a `-PpublicBuild` APK
+  gets full built-in AI with no keys inside. The app calls the proxy URL (not a secret) and
+  the proxy adds the key - so you can also rate-limit, rotate keys without a new app release,
   and cap spend.
 - **Rotate leaked keys:** the Groq + ElevenLabs keys were compiled into earlier APKs, so
   rotate them in the Groq / ElevenLabs dashboards even though those release assets were

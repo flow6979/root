@@ -28,6 +28,14 @@ val supabaseAnonKey: String = (localProps.getProperty("SUPABASE_ANON_KEY")
 val elevenKey: String = if (publicBuild) "" else (localProps.getProperty("ELEVENLABS_API_KEY")
     ?: System.getenv("ELEVENLABS_API_KEY") ?: "").trim()
 
+// Backend proxy (see /proxy). These are NOT secrets - the URL is public and the app token is
+// only a light gate - so they ship in every build (including -PpublicBuild). When set, the app
+// calls the proxy (which holds the real keys) instead of shipping Groq/ElevenLabs keys.
+val proxyBaseUrl: String = (localProps.getProperty("PROXY_BASE_URL")
+    ?: System.getenv("PROXY_BASE_URL") ?: "").trim()
+val proxyAppToken: String = (localProps.getProperty("PROXY_APP_TOKEN")
+    ?: System.getenv("PROXY_APP_TOKEN") ?: "").trim()
+
 val releaseStoreFile: String? = localProps.getProperty("RELEASE_STORE_FILE")
 
 android {
@@ -56,6 +64,8 @@ android {
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
         buildConfigField("String", "ELEVENLABS_API_KEY", "\"$elevenKey\"")
+        buildConfigField("String", "PROXY_BASE_URL", "\"$proxyBaseUrl\"")
+        buildConfigField("String", "PROXY_APP_TOKEN", "\"$proxyAppToken\"")
     }
 
     buildTypes {
