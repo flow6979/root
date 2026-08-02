@@ -281,24 +281,16 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
         }
         Spacer(Modifier.height(14.dp))
 
-        // ---- strict mode (premium) ----
+        // ---- strict mode ----
         Card(shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = palette.surface),
             modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
-                if (premium) {
-                    Text("🛡️ Strict Mode on", fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold, color = palette.accent)
-                    Spacer(Modifier.height(6.dp))
-                    Text("No \"open anyway\". The pause can't be skipped.",
-                        fontSize = 13.sp, color = palette.dim)
-                } else {
-                    Text("🔒 Strict Mode (Premium)", fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold, color = PremiumAccent)
-                    Spacer(Modifier.height(6.dp))
-                    Text("Removes the \"open anyway\" button. Unlock in You.",
-                        fontSize = 13.sp, color = palette.dim)
-                }
+                Text("🛡️ Strict Mode on", fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold, color = palette.accent)
+                Spacer(Modifier.height(6.dp))
+                Text("No \"open anyway\". The pause can't be skipped.",
+                    fontSize = 13.sp, color = palette.dim)
             }
         }
         Spacer(Modifier.height(24.dp))

@@ -30,18 +30,20 @@
 - Stories: AI "For you" + public-domain "Classics", refreshable, optional cloud narration.
 - Scores: deterministic wellbeing/eating/mood/screen scores + Home tap-to-explain dialog.
 - Personality (Gentle / Tough-love) applied to the friend's tone.
-- Premium: server-controlled `entitlements` table + test unlock. Admin via Supabase dashboard
-  (grant/revoke functions + `premium_users` / `user_progress` views - see docs/ADMIN.md).
+- **All features free** - premium tier + Play Billing removed; every feature is unlocked for
+  everyone (v0.3.0).
+- **AI engine choice** - built-in free (Groq) by default, or the user's own **Gemini key**
+  (You -> AI). Provider picked in `AppModule`; future: OpenAI/Anthropic via the same slot.
 
 ## Distance to a real launch (honest)
 Internal-testing-ready in DAYS (needs: app icon, privacy policy URL, release signing
-config, honest Data Safety form). The one true feature gap for selling premium is
-**self-serve Play Billing** (today premium is admin-granted or a test unlock). Public MVP
-also wants: route AI + writes via a backend (hide keys + RAG), two-way sync/restore across
-devices, onboarding polish, and multi-device testing. See ANALYTICS.md for owner metrics.
+config, honest Data Safety form). There is no paid tier - all features are free - so no
+billing work is needed. Public MVP still wants: route AI + writes via a backend (hide keys
++ RAG), two-way sync/restore across devices, onboarding polish, and multi-device testing.
+See ANALYTICS.md for owner metrics.
 
 ## Next up
-- **Play Billing** subscribe flow so users can buy premium themselves (main gap).
+- More AI providers behind the same slot (OpenAI, Anthropic) + a picker in You -> AI.
 - Route AI + writes via a backend so the anon/Groq/ElevenLabs keys aren't shipped in the app;
   rotate the current keys before going public.
 - Two-way sync/restore on a new device; sync interrupt stats.

@@ -1,5 +1,10 @@
 # Admin (no deployment) - use the Supabase dashboard
 
+> **Note (v0.3.0):** the app no longer has a premium tier - all features are free - so the
+> `entitlements` table and grant/revoke functions below are **no longer used by the app**.
+> They're kept only if you ever reintroduce paid features. For plain user-activity viewing,
+> you only need the `user_progress` view.
+
 Forget the local HTML file. The easiest admin, with nothing to host, is **Supabase's own
 dashboard** (supabase.com → your project). Run the one-time SQL below and you get:
 - a **`premium_users`** table view (open it to see who has premium),

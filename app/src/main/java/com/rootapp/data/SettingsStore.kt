@@ -18,10 +18,16 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean(ONBOARDED, false)
         set(v) = prefs.edit().putBoolean(ONBOARDED, v).apply()
 
-    /** Premium entitlement. Currently flipped by a test unlock; later set by Play Billing. */
-    var premium: Boolean
-        get() = prefs.getBoolean(PREMIUM, false)
-        set(v) = prefs.edit().putBoolean(PREMIUM, v).apply()
+    /** All features are free for everyone. Kept as a constant so feature gates stay unlocked. */
+    val premium: Boolean get() = true
+
+    /**
+     * Optional user-supplied Gemini API key. When set, AI generation runs on the user's own
+     * Gemini quota instead of Root's built-in free engine. Blank = use the default engine.
+     */
+    var geminiApiKey: String
+        get() = prefs.getString(GEMINI_KEY, "") ?: ""
+        set(v) = prefs.edit().putString(GEMINI_KEY, v.trim()).apply()
 
     var userName: String
         get() = prefs.getString(USER_NAME, "Vaibhav") ?: "Vaibhav"
@@ -32,6 +38,6 @@ class SettingsStore(context: Context) {
         private const val PERSONALITY = "personality"
         private const val ONBOARDED = "onboarded"
         private const val USER_NAME = "user_name"
-        private const val PREMIUM = "premium"
+        private const val GEMINI_KEY = "gemini_api_key"
     }
 }

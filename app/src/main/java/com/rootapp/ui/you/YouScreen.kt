@@ -1,6 +1,6 @@
 package com.rootapp.ui.you
 
-import androidx.compose.foundation.background
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,35 +13,29 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import android.app.Activity
-import android.content.Context
-import android.content.ContextWrapper
-import com.rootapp.billing.BillingManager
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.rootapp.di.AppModule
 import com.rootapp.shield.ShieldPermissions
 import com.rootapp.ui.theme.LocalRootPalette
-import com.rootapp.ui.theme.PremiumAccent
 
 @Composable
 fun YouScreen(
@@ -58,76 +52,64 @@ fun YouScreen(
     val settings = remember { com.rootapp.data.SettingsStore(context) }
     val repo = remember { com.rootapp.data.SupabaseRepository(context) }
     val accountLabel = repo.email ?: if (repo.isGuest) "Guest" else "Signed in"
-    var premium by remember { mutableStateOf(settings.premium) }
     var refresh by remember { mutableIntStateOf(0) }
     LifecycleResumeEffect(Unit) { refresh++; onPauseOrDispose { } }
-    val activity = remember { context.findActivity() }
-    val billing = remember { BillingManager(context) { premium = true } }
-    DisposableEffect(Unit) { billing.start(); onDispose { billing.close() } }
     val hasUsage = remember(refresh) { ShieldPermissions.hasUsageAccess(context) }
     val hasOverlay = remember(refresh) { ShieldPermissions.hasOverlay(context) }
+
+    // AI engine state
+    var geminiKey by remember { mutableStateOf(settings.geminiApiKey) }
+    var providerLabel by remember { mutableStateOf(AppModule.activeProviderLabel()) }
 
     Column(
         modifier.fillMaxWidth().verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         Text("You", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
-        Text("$accountLabel · ${if (premium) "Premium" else "Free"} plan", fontSize = 12.sp, color = palette.dim)
+        Text("$accountLabel · all features included", fontSize = 12.sp, color = palette.dim)
         Spacer(Modifier.height(16.dp))
 
-        // Premium
-        Card(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color.Transparent)) {
-            Column(
-                Modifier.fillMaxWidth()
-                    .background(Brush.horizontalGradient(listOf(Color(0xFF2E5540), Color(0xFF3E6B52))))
-                    .padding(16.dp),
-            ) {
-                Text(if (premium) "✨ Premium active" else "✨ Root Premium",
-                    color = PremiumAccent, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Spacer(Modifier.height(6.dp))
+        // AI engine
+        Section("AI")
+        Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = palette.surface)) {
+            Column(Modifier.padding(16.dp)) {
+                Text("AI engine", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
+                Text("Now using: $providerLabel", fontSize = 12.sp, color = palette.accent)
+                Spacer(Modifier.height(10.dp))
                 Text(
-                    if (premium) "All features unlocked. Thank you for supporting Root."
-                    else "Strict mode · unlimited AI · weekly insights · story audio",
-                    color = Color(0xFFD6E6DA), fontSize = 13.sp,
+                    "Optional: use your own Gemini key so AI runs on your quota. Get a free key from " +
+                        "Google AI Studio (aistudio.google.com). Leave blank to use Root's free engine.",
+                    fontSize = 12.sp, color = palette.dim,
                 )
-                Spacer(Modifier.height(12.dp))
-                when {
-                    premium -> {
-                        // Manage/cancel happens in Google Play; keep a local off switch for testing.
-                        androidx.compose.material3.OutlinedButton(
-                            onClick = { premium = false; settings.premium = false },
-                        ) { Text("Turn off (test)", color = Color(0xFFD6E6DA), fontWeight = FontWeight.SemiBold) }
-                    }
-                    billing.available && activity != null -> {
-                        Button(
-                            onClick = { billing.purchase(activity) },
-                            colors = ButtonDefaults.buttonColors(containerColor = PremiumAccent),
-                        ) {
-                            Text(
-                                "Go Premium" + (billing.priceText?.let { " · $it/mo" } ?: ""),
-                                color = Color(0xFF231A08), fontWeight = FontWeight.SemiBold,
-                            )
-                        }
-                        Spacer(Modifier.height(6.dp))
-                        Text("Billed through Google Play. Cancel anytime.",
-                            color = Color(0xFFB9CFC0), fontSize = 11.sp)
-                    }
-                    else -> {
-                        // Play/product not reachable here (emulator, debug, or product not live yet).
-                        Button(
-                            onClick = { premium = true; settings.premium = true },
-                            colors = ButtonDefaults.buttonColors(containerColor = PremiumAccent),
-                        ) {
-                            Text("Unlock premium (test)",
-                                color = Color(0xFF231A08), fontWeight = FontWeight.SemiBold)
-                        }
-                        Spacer(Modifier.height(6.dp))
-                        Text("Test unlock. The Google Play purchase button appears here once the " +
-                            "subscription is live and you're signed in to Play.",
-                            color = Color(0xFFB9CFC0), fontSize = 11.sp)
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = geminiKey,
+                    onValueChange = { geminiKey = it },
+                    label = { Text("Gemini API key") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = {
+                        settings.geminiApiKey = geminiKey
+                        geminiKey = settings.geminiApiKey
+                        providerLabel = AppModule.activeProviderLabel()
+                        Toast.makeText(context, "AI engine updated", Toast.LENGTH_SHORT).show()
+                    }) { Text("Save") }
+                    if (geminiKey.isNotBlank()) {
+                        TextButton(onClick = {
+                            geminiKey = ""
+                            settings.geminiApiKey = ""
+                            providerLabel = AppModule.activeProviderLabel()
+                            Toast.makeText(context, "Back to Root's free engine", Toast.LENGTH_SHORT).show()
+                        }) { Text("Clear", color = palette.accent) }
                     }
                 }
+                Spacer(Modifier.height(4.dp))
+                Text("More providers (OpenAI, Anthropic) coming later. Voice transcription still uses Root's engine.",
+                    fontSize = 11.sp, color = palette.dim)
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -166,8 +148,6 @@ fun YouScreen(
                     }
                 }
                 Spacer(Modifier.height(14.dp))
-                RowText("Voice", "🔒 Premium")
-                Spacer(Modifier.height(14.dp))
                 RowText("Accountability partner", "Not set")
             }
         }
@@ -203,16 +183,6 @@ fun YouScreen(
             fontSize = 11.sp, color = palette.dim, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(24.dp))
     }
-}
-
-/** Unwrap the Activity from a Compose Context (needed to launch the Play purchase sheet). */
-private fun Context.findActivity(): Activity? {
-    var c: Context? = this
-    while (c is ContextWrapper) {
-        if (c is Activity) return c
-        c = c.baseContext
-    }
-    return null
 }
 
 @Composable

@@ -19,15 +19,16 @@ minimalist black-and-white option.
 | Stories | You | Score explained |
 |---|---|---|
 | ![Stories](docs/screenshots/stories.png) | ![You](docs/screenshots/you.png) | ![Score](docs/screenshots/score-explained.png) |
-| Immersive, finite reads: **For you** (AI-generated) and **Classics** (public-domain). Optional voice narration (premium). Ends on purpose so the scroll doesn't own you. | Premium, appearance (time-adaptive or minimalist B&W), your friend's **personality** (Gentle / Tough-love), voice, and account. | Tap the Home score to see exactly how it is built: the average of Mood, Eating, and Screen time (each 0-100). |
+| Immersive, finite reads: **For you** (AI-generated) and **Classics** (public-domain). Optional voice narration. Ends on purpose so the scroll doesn't own you. | Appearance (time-adaptive or minimalist B&W), your friend's **personality** (Gentle / Tough-love), the **AI engine** (built-in free, or your own Gemini key), and account. | Tap the Home score to see exactly how it is built: the average of Mood, Eating, and Screen time (each 0-100). |
 
 ## What works today
 - **Home** - greeting + streak, wellbeing score with a tap-to-explain dialog, animated
   celestial-orb companion, one-tap mood check-in, reflection + voice entry points.
-- **AI friend** - short reflection chat and a **voice-only** session, wired to a free LLM
-  (Groq `llama-3.1-8b-instant`). Speech-to-text via Groq Whisper; a voice reply chain of
-  ElevenLabs -> Google Translate TTS -> Android system TTS. Tone follows the chosen
-  personality (Gentle / Tough-love).
+- **AI friend** - short reflection chat and a **voice-only** session. AI generation runs on
+  a built-in free engine (Groq `llama-3.1-8b-instant`) by default, or on **your own Gemini
+  key** if you add one in You -> AI (more providers planned). Speech-to-text via Groq Whisper;
+  a voice reply chain of ElevenLabs -> Google Translate TTS -> Android system TTS. Tone
+  follows the chosen personality (Gentle / Tough-love).
 - **Shield** - reads real weekly screen time (UsageStatsManager), plain-language "Root's
   read", AI "dig deeper" analyses, mood/meals graphs, and a gentle full-screen interrupt
   (overlay + foreground service) when you open a time-sink app.
@@ -36,17 +37,17 @@ minimalist black-and-white option.
   (premium), per-day history, and delete.
 - **Stories** - AI-generated "For you" stories plus public-domain "Classics", refreshable,
   with optional cloud voice narration; finite by design.
-- **You** - premium, time-adaptive vs minimalist theme, personality, voice, account/logout.
+- **You** - AI engine choice (free built-in or your Gemini key), time-adaptive vs minimalist
+  theme, personality, account/logout.
 - **Accounts + sync** - Supabase auth (email/password or anonymous guest) with row-level
   security; mood/food/reflection rows sync to the cloud so data follows the user.
-- **Premium** - server-controlled via a Supabase `entitlements` table (admin-granted today;
-  self-serve Play Billing is the main remaining launch item).
+- **All features are free** - no premium tier, no paywalls, no in-app purchases.
 
 ## Stack
 Kotlin + Jetpack Compose - Supabase (Postgres + pgvector + Auth + RLS) - free LLM tier
 (Groq: chat + Whisper STT) - ElevenLabs / Google Translate TTS with on-device fallback -
 OpenStreetMap Overpass (nearby places) - UsageStatsManager + overlay foreground service
-(app interrupts) - Google Play Billing (planned). Launch cost target ~$0/month.
+(app interrupts). Bring-your-own Gemini key optional. Launch cost target ~$0/month.
 
 > Keys (Groq/ElevenLabs/Supabase anon) currently ship in the APK via BuildConfig. Rotate
 > them and route AI + writes through a backend before any public release.
@@ -63,9 +64,8 @@ Secrets go in `local.properties` (gitignored): `GROQ_API_KEY`, `ELEVENLABS_API_K
 `SUPABASE_URL`, `SUPABASE_ANON_KEY`. The app runs offline (demo AI, local-only) if unset.
 
 ## Admin (no deployment)
-Managing users and premium is done from the **Supabase dashboard** - no server to host.
-Run the setup SQL once, then see `premium_users` / `user_progress` views and grant premium
-with a one-line function. Full steps in `docs/ADMIN.md`.
+There is no premium tier to manage. To view user activity, use the **Supabase dashboard**
+(`user_progress` view) - no server to host. See `docs/ADMIN.md`.
 
 ## Deploy
 Signed AAB to the Google Play **Internal testing** track first, then promote. Versioning is

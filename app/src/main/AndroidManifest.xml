@@ -3,8 +3,6 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Play Billing: buy Root Premium subscription -->
-    <uses-permission android:name="com.android.vending.BILLING" />
     <!-- Shield: detect foreground app + draw the interrupt overlay + run a watcher -->
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
