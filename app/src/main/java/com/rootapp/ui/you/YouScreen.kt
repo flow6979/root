@@ -58,7 +58,9 @@ fun YouScreen(
     val hasOverlay = remember(refresh) { ShieldPermissions.hasOverlay(context) }
 
     // AI engine state
-    var geminiKey by remember { mutableStateOf(settings.geminiApiKey) }
+    var savedKey by remember { mutableStateOf(settings.geminiApiKey) }
+    var draftKey by remember { mutableStateOf(settings.geminiApiKey) }
+    var editingKey by remember { mutableStateOf(settings.geminiApiKey.isBlank()) }
     var providerLabel by remember { mutableStateOf(AppModule.activeProviderLabel()) }
 
     Column(
@@ -77,39 +79,62 @@ fun YouScreen(
                 Text("AI engine", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
                 Text("Now using: $providerLabel", fontSize = 12.sp, color = palette.accent)
                 Spacer(Modifier.height(10.dp))
-                Text(
-                    "Optional: use your own Gemini key so AI runs on your quota. Get a free key from " +
-                        "Google AI Studio (aistudio.google.com). Leave blank to use Root's free engine.",
-                    fontSize = 12.sp, color = palette.dim,
-                )
-                Spacer(Modifier.height(10.dp))
-                OutlinedTextField(
-                    value = geminiKey,
-                    onValueChange = { geminiKey = it },
-                    label = { Text("Gemini API key") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = {
-                        settings.geminiApiKey = geminiKey
-                        geminiKey = settings.geminiApiKey
-                        providerLabel = AppModule.activeProviderLabel()
-                        Toast.makeText(context, "AI engine updated", Toast.LENGTH_SHORT).show()
-                    }) { Text("Save") }
-                    if (geminiKey.isNotBlank()) {
+                if (!editingKey && savedKey.isNotBlank()) {
+                    // Saved state: show the masked key on its own line with edit / remove.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Your Gemini key", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
+                            Text(maskKey(savedKey), fontSize = 13.sp, color = palette.dim)
+                        }
+                        TextButton(onClick = { draftKey = savedKey; editingKey = true }) { Text("Edit", color = palette.accent) }
                         TextButton(onClick = {
-                            geminiKey = ""
-                            settings.geminiApiKey = ""
+                            savedKey = ""; draftKey = ""; settings.geminiApiKey = ""
+                            editingKey = true
                             providerLabel = AppModule.activeProviderLabel()
-                            Toast.makeText(context, "Back to Root's free engine", Toast.LENGTH_SHORT).show()
-                        }) { Text("Clear", color = palette.accent) }
+                            Toast.makeText(context, "Back to Root's engine", Toast.LENGTH_SHORT).show()
+                        }) { Text("Remove", color = palette.accent) }
                     }
+                    Spacer(Modifier.height(2.dp))
+                    Text("Root is using your key. Edit to change it, Remove to go back to the free engine.",
+                        fontSize = 11.sp, color = palette.dim)
+                } else {
+                    // Editing / first-time state: the input + Save (and Cancel if a key exists).
+                    Text(
+                        "Optional: use your own Gemini key so AI runs on your quota. Get a free key from " +
+                            "Google AI Studio (aistudio.google.com).",
+                        fontSize = 12.sp, color = palette.dim,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = draftKey,
+                        onValueChange = { draftKey = it },
+                        label = { Text("Gemini API key") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = {
+                                settings.geminiApiKey = draftKey.trim()
+                                savedKey = settings.geminiApiKey
+                                draftKey = savedKey
+                                providerLabel = AppModule.activeProviderLabel()
+                                editingKey = savedKey.isBlank() // collapse to the saved row when a key is set
+                                Toast.makeText(context, "AI engine updated", Toast.LENGTH_SHORT).show()
+                            },
+                            enabled = draftKey.isNotBlank(),
+                        ) { Text("Save") }
+                        if (savedKey.isNotBlank()) {
+                            TextButton(onClick = { draftKey = savedKey; editingKey = false }) {
+                                Text("Cancel", color = palette.accent)
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text("More providers (OpenAI, Anthropic) coming later. Voice transcription still uses Root's engine.",
+                        fontSize = 11.sp, color = palette.dim)
                 }
-                Spacer(Modifier.height(4.dp))
-                Text("More providers (OpenAI, Anthropic) coming later. Voice transcription still uses Root's engine.",
-                    fontSize = 11.sp, color = palette.dim)
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -137,18 +162,21 @@ fun YouScreen(
         Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = palette.surface)) {
             Column(Modifier.padding(16.dp)) {
-                Text("Personality", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
-                Text("How Root talks to you in sessions. Gentle = warm and soft. Tough-love = direct and honest.",
+                Text("How Root talks to you", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
+                Text("Pick the coaching style that helps you most. Switch anytime; it changes every reply.",
                     fontSize = 12.sp, color = palette.dim)
-                Spacer(Modifier.height(10.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("Gentle", "Tough-love").forEach { p ->
-                        FilterChip(selected = personality == p, onClick = { onPersonalityChange(p) },
-                            label = { Text(p) })
-                    }
-                }
-                Spacer(Modifier.height(14.dp))
-                RowText("Accountability partner", "Not set")
+                Spacer(Modifier.height(12.dp))
+                PersonalityOption(
+                    title = "Gentle",
+                    benefit = "Warm and validating. Softens hard days, celebrates small wins, never pushes.",
+                    selected = personality == "Gentle",
+                ) { onPersonalityChange("Gentle") }
+                Spacer(Modifier.height(8.dp))
+                PersonalityOption(
+                    title = "Tough-love",
+                    benefit = "Honest and direct. Names the excuse, asks for one real commitment, keeps you accountable.",
+                    selected = personality == "Tough-love",
+                ) { onPersonalityChange("Tough-love") }
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -201,6 +229,35 @@ private fun RowText(title: String, detail: String) {
         Text(detail, fontSize = 12.sp, color = palette.dim)
     }
 }
+
+@Composable
+private fun PersonalityOption(title: String, benefit: String, selected: Boolean, onClick: () -> Unit) {
+    val palette = LocalRootPalette.current
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = if (selected) palette.accentSoft else palette.surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    title, fontSize = 15.sp,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                    color = if (selected) palette.accent else palette.onSurface,
+                )
+                Text(benefit, fontSize = 12.sp, color = palette.dim)
+            }
+            if (selected) {
+                Text("✓", color = palette.accent, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+/** Show a key as first-4 + dots + last-4 so it's recognisable but not fully exposed on screen. */
+private fun maskKey(k: String): String =
+    if (k.length <= 8) "••••••••" else k.take(4) + "••••" + k.takeLast(4)
 
 @Composable
 private fun PermRow(title: String, granted: Boolean, onGrant: () -> Unit) {

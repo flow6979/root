@@ -22,6 +22,8 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -87,9 +89,16 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
         val routeName = currentRoute?.route
         val isNested = routeName == "reflection" || routeName == "voice"
 
+        Box(Modifier.fillMaxSize()) {
+        SkyBackground(hour = currentHour, minimalist = minimalist, modifier = Modifier.matchParentSize())
         Scaffold(
+            containerColor = Color.Transparent,
             topBar = {
                 TopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent,
+                    ),
                     title = { Text(if (routeName == "reflection") "Reflection" else "Root") },
                     navigationIcon = {
                         if (isNested) {
@@ -106,7 +115,7 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
                 )
             },
             bottomBar = {
-                NavigationBar {
+                NavigationBar(containerColor = LocalRootPalette.current.surface) {
                     Tab.entries.forEach { tab ->
                         val selected = currentRoute?.hierarchy?.any { it.route == tab.route } == true
                         NavigationBarItem(
@@ -130,11 +139,6 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
                     .fillMaxSize()
                     .padding(inner),
             ) {
-                SkyBackground(
-                    hour = currentHour,
-                    minimalist = minimalist,
-                    modifier = Modifier.matchParentSize(),
-                )
                 NavHost(
                     navController = navController,
                     startDestination = Tab.HOME.route,
@@ -172,6 +176,7 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
                     }
                 }
             }
+        }
         }
     }
 }

@@ -33,7 +33,7 @@ class ReflectionViewModel(
     // Full transcript incl. the hidden system prompt, sent to the model each turn.
     private val transcript = mutableListOf(
         ChatMessage.system(Prompts.friendSystemPrompt(userName, pastMemory.ifBlank { null }, tone)),
-        ChatMessage.assistant(Prompts.opener(userName)),
+        ChatMessage.assistant(Prompts.opener(userName, tone)),
     )
 
     private val _state = MutableStateFlow(UiState(visible = visibleFrom(transcript)))
