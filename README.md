@@ -63,6 +63,28 @@ OpenStreetMap Overpass (nearby places) - UsageStatsManager + overlay foreground 
 Secrets go in `local.properties` (gitignored): `GROQ_API_KEY`, `ELEVENLABS_API_KEY`,
 `SUPABASE_URL`, `SUPABASE_ANON_KEY`. The app runs offline (demo AI, local-only) if unset.
 
+## Keys and publishing safely
+A mobile app is not a secret store: anything compiled into an APK (BuildConfig fields,
+strings, "encrypted" blobs) can be extracted with `jadx` / `strings` or by proxying its
+HTTPS traffic. So the rule is **don't ship a secret you can't afford to be public**.
+
+- **Safe to ship:** the Supabase **anon** key (a public client key protected by row-level
+  security). It stays in the APK.
+- **Never ship:** Groq, ElevenLabs, OpenAI, Supabase **service_role** - these are billable /
+  privileged.
+- **Public build:** `./gradlew assembleRelease -PpublicBuild` strips the paid keys, so the
+  APK is safe to attach to a public release (this is what the GitHub release APK is built
+  with). In that build, AI needs the user's own Gemini key (You -> AI) or falls back to
+  offline demo; voice uses the free no-key TTS.
+- **To keep built-in AI while public:** run a thin **backend proxy** you control (Cloudflare
+  Workers or Supabase Edge Functions, both free) that holds the Groq/ElevenLabs keys as
+  server secrets. The app calls the proxy URL (not a secret) and the proxy adds the key and
+  forwards the request - so you can also rate-limit, rotate keys without a new app release,
+  and cap spend.
+- **Rotate leaked keys:** the Groq + ElevenLabs keys were compiled into earlier APKs, so
+  rotate them in the Groq / ElevenLabs dashboards even though those release assets were
+  deleted.
+
 ## Admin (no deployment)
 There is no premium tier to manage. To view user activity, use the **Supabase dashboard**
 (`user_progress` view) - no server to host. See `docs/ADMIN.md`.
