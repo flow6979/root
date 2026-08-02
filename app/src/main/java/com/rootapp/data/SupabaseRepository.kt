@@ -99,9 +99,13 @@ class SupabaseRepository(context: Context) {
         toResult(authCallResult(req, "sign-in"), "email")
     }
 
-    suspend fun signUp(emailAddr: String, password: String): AuthResult = withContext(Dispatchers.IO) {
+    suspend fun signUp(emailAddr: String, password: String, name: String = ""): AuthResult = withContext(Dispatchers.IO) {
         if (!configured) return@withContext AuthResult.Error("Not configured")
-        val body = buildJsonObject { put("email", emailAddr.trim()); put("password", password) }
+        val body = buildJsonObject {
+            put("email", emailAddr.trim())
+            put("password", password)
+            if (name.isNotBlank()) put("data", buildJsonObject { put("full_name", name.trim()) })
+        }
         val req = Request.Builder()
             .url("$baseUrl/auth/v1/signup")
             .addHeader("apikey", anonKey)
