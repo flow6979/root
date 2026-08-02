@@ -40,7 +40,9 @@ class GeminiClient(
         require(apiKey.isNotBlank()) { "Gemini API key is missing. Add it in You -> AI." }
 
         val system = messages.filter { it.role == "system" }.joinToString("\n") { it.content }
-        val turns = messages.filter { it.role != "system" }
+        // Gemini requires the conversation to START with a user turn (unlike OpenAI/Groq, which
+        // accept an assistant opener). Drop any leading assistant turns, else it 400s every time.
+        val turns = messages.filter { it.role != "system" }.dropWhile { it.role == "assistant" }
 
         val payload = buildJsonObject {
             if (system.isNotBlank()) {

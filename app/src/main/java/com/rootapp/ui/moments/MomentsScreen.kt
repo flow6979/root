@@ -43,7 +43,6 @@ import androidx.compose.ui.unit.sp
 import com.rootapp.analytics.Events
 import com.rootapp.analytics.Track
 import androidx.core.content.ContextCompat
-import com.google.android.gms.location.LocationServices
 import com.rootapp.data.FoodEntry
 import com.rootapp.data.LocalStore
 import com.rootapp.data.SettingsStore
@@ -70,28 +69,33 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
     fun refreshFoods() { foods = store.foods().reversed() }
 
     // Find real eating spots nearby (OpenStreetMap) and watch them.
-    @Suppress("MissingPermission")
+    // Uses an ACTIVE location fetch (getCurrentLocation) rather than lastLocation, which is
+    // frequently null on real devices until something requests a fresh fix.
     fun findNearby() {
-        watchStatus = "Looking for eating spots nearby…"
-        try {
-            LocationServices.getFusedLocationProviderClient(context).lastLocation
-                .addOnSuccessListener { loc ->
-                    if (loc == null) { watchStatus = "No location yet. Move around and retry."; return@addOnSuccessListener }
-                    scope.launch {
-                        val places = NearbyPlaces.findFoodSpots(loc.latitude, loc.longitude)
-                        if (places.isEmpty()) {
-                            watchStatus = "Couldn't find eating spots nearby. Check location is on."
-                            nearbyList = emptyList()
-                        } else {
-                            geofence.registerNearby(places)
-                            nearest = places.first()
-                            nearbyList = places.take(8)
-                            watchStatus = "Found ${places.size}. Watching the closest, I'll nudge you near one."
-                        }
+        watchStatus = "Getting your location..."
+        nearbyList = emptyList()
+        scope.launch {
+            when (val res = com.rootapp.location.LocationFetcher.fetch(context)) {
+                is com.rootapp.location.LocationFetcher.Result.PermissionDenied ->
+                    watchStatus = "Location permission needed"
+                is com.rootapp.location.LocationFetcher.Result.ServicesOff ->
+                    watchStatus = "Turn on location and retry"
+                is com.rootapp.location.LocationFetcher.Result.NoFix ->
+                    watchStatus = "Couldn't get your location. Go outside or retry."
+                is com.rootapp.location.LocationFetcher.Result.Ok -> {
+                    watchStatus = "Searching eating spots nearby..."
+                    val places = NearbyPlaces.findFoodSpots(res.lat, res.lng)
+                    if (places.isEmpty()) {
+                        watchStatus = NearbyPlaces.noResultsMessage()
+                        nearbyList = emptyList()
+                    } else {
+                        geofence.registerNearby(places)
+                        nearest = places.first()
+                        nearbyList = places.take(8)
+                        watchStatus = "Found ${places.size}. Watching the closest, I'll nudge you near one."
                     }
                 }
-        } catch (e: SecurityException) {
-            watchStatus = "Location permission needed"
+            }
         }
     }
 
@@ -103,13 +107,18 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
     val voiceRecorder = remember { com.rootapp.voice.VoiceRecorder(context) }
     var foodRecording by remember { mutableStateOf(false) }
     var foodSaving by remember { mutableStateOf(false) }
+    // Persist one meal: local store + remote push + analytics. Assumes caller refreshes the list.
+    fun saveMeal(meal: com.rootapp.ai.FoodExtractor.Meal) {
+        store.addFood(meal.food, meal.healthy, System.currentTimeMillis())
+        scope.launch { supabase.pushFood(meal.food, meal.healthy) }
+        Track.event(Events.FOOD_LOGGED, mapOf("healthy" to meal.healthy, "source" to "voice"))
+    }
     fun logSpoken(text: String) {
-        val junk = listOf("burger", "pizza", "fries", "soda", "coke", "chips", "candy", "fried", "ice cream", "donut")
-        val healthy = junk.none { text.lowercase().contains(it) }
-        store.addFood(text, healthy, System.currentTimeMillis())
+        // Deterministic split so "pizza and pasta" logs two entries even without the LLM.
+        val meals = com.rootapp.ai.FoodExtractor.parse(text)
+            .ifEmpty { listOf(com.rootapp.ai.FoodExtractor.Meal(text, healthy = true)) }
+        meals.forEach { saveMeal(it) }
         refreshFoods()
-        scope.launch { supabase.pushFood(text, healthy) }
-        Track.event(Events.FOOD_LOGGED, mapOf("healthy" to healthy, "source" to "voice"))
     }
     val recordPermFood = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) { if (voiceRecorder.start()) foodRecording = true }
@@ -127,14 +136,12 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
                 Toast.makeText(context, "Didn't catch that.", Toast.LENGTH_SHORT).show()
                 return@launch
             }
-            // Pull out just the food (e.g. "I ate pizza today" -> pizza, unhealthy).
-            val m = com.rootapp.ai.FoodExtractor.extract(com.rootapp.di.AppModule.llmClient, text)
+            // Pull out each food (e.g. "I ate pizza and pasta today" -> two unhealthy entries).
+            val meals = com.rootapp.ai.FoodExtractor.extract(com.rootapp.di.AppModule.llmClient, text)
             foodSaving = false
-            if (m != null) {
-                store.addFood(m.food, m.healthy, System.currentTimeMillis())
+            if (meals.isNotEmpty()) {
+                meals.forEach { saveMeal(it) }
                 refreshFoods()
-                supabase.pushFood(m.food, m.healthy)
-                Track.event(Events.FOOD_LOGGED, mapOf("healthy" to m.healthy, "source" to "voice"))
             } else {
                 logSpoken(text) // fallback: store what we heard
             }
@@ -224,7 +231,11 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
         // ---- eating score ----
         val healthyCount = foods.count { it.healthy }
         val junkCount = foods.count { !it.healthy }
-        val eatingScore = com.rootapp.data.Scores.eating(healthyCount, junkCount)
+        // Weighted score: MealHealth gives each meal a 0..100 weight, recency-biased. foods is
+        // newest-first, so reverse to oldest-first for the recency ramp.
+        val eatingScore = com.rootapp.data.Scores.eatingWeighted(foods.asReversed().map { it.label })
+        // Per-meal reasons for the few most recent meals (newest first), shown compactly.
+        val recentReasons = foods.take(3).map { it.label to com.rootapp.data.MealHealth.scoreMeal(it.label) }
         var showDetails by remember { mutableStateOf(false) }
         var details by remember { mutableStateOf<String?>(null) }
         var loadingDetails by remember { mutableStateOf(false) }
@@ -243,6 +254,15 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
                     }
                     Text(eatingScore?.let { "$it" } ?: "—", fontSize = 30.sp,
                         fontWeight = FontWeight.Bold, color = palette.accent)
+                }
+                if (eatingScore != null && recentReasons.isNotEmpty()) {
+                    Spacer(Modifier.height(10.dp))
+                    recentReasons.forEach { (label, ms) ->
+                        Text(
+                            "$label · ${ms.score}/100 - ${ms.reason}",
+                            fontSize = 11.sp, color = palette.dim,
+                        )
+                    }
                 }
                 if (eatingScore != null) {
                     Spacer(Modifier.height(10.dp))

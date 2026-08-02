@@ -36,6 +36,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rootapp.shield.InterruptOverlay
 import com.rootapp.shield.MonitoredApps
+import com.rootapp.shield.ShieldInsights
 import com.rootapp.shield.ShieldPermissions
 import com.rootapp.shield.UsageStatsReader
 import com.rootapp.shield.UsageWatcherService
@@ -62,6 +63,26 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
     val topApps = remember(permRefresh, hasUsage) { if (hasUsage) UsageStatsReader.topApps(context) else emptyList() }
     val dailyAvg = UsageStatsReader.fmt(UsageStatsReader.dailyAverageMinutes(days))
     val aiRead = UsageStatsReader.read(days, topApps)
+
+    // Real, tied-to-the-problem insight: late-night use, week-over-week trend, the top time-sink,
+    // and an honest "you could get back ~X" framing. Degrades gracefully when access isn't granted.
+    val heroLines = remember(permRefresh, hasUsage, days, topApps) {
+        if (!hasUsage) emptyList() else {
+            val top = topApps.firstOrNull()
+            ShieldInsights.heroLines(
+                ShieldInsights.Insight(
+                    lateNightMinutes = UsageStatsReader.lateNightMinutesLastWeek(context),
+                    weekOverWeekPercent = ShieldInsights.weekOverWeekPercent(
+                        UsageStatsReader.thisWeekMinutes(context),
+                        UsageStatsReader.lastWeekMinutes(context),
+                    ),
+                    topSinkLabel = top?.label,
+                    topSinkMinutes = top?.minutes ?: 0,
+                    dailyAverageMinutes = UsageStatsReader.dailyAverageMinutes(days),
+                ),
+            )
+        }
+    }
 
     val monitored = remember { MonitoredApps(context) }
     var igOn by remember { mutableStateOf(monitored.isMonitored("com.instagram.android")) }
@@ -91,6 +112,22 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
             }
         }
         Spacer(Modifier.height(16.dp))
+
+        // ---- hero insight (one or two lines tied to real problems) ----
+        if (heroLines.isNotEmpty()) {
+            GlassCard(palette.surface) {
+                heroLines.forEachIndexed { i, line ->
+                    if (i > 0) Spacer(Modifier.height(8.dp))
+                    Text(
+                        (if (i == 0) "✨ " else "→ ") + line,
+                        fontSize = 14.sp,
+                        fontWeight = if (i == 0) FontWeight.SemiBold else FontWeight.Normal,
+                        color = palette.onSurface,
+                    )
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
 
         // ---- the gentle pause (core feature) ----
         Section("THE GENTLE PAUSE")

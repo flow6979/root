@@ -1,7 +1,19 @@
 package com.rootapp.location
 
+import android.annotation.SuppressLint
+import android.content.Context
+import android.location.LocationManager
+import android.util.Log
+import androidx.core.location.LocationManagerCompat
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.resume
+import kotlin.math.roundToInt
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -87,5 +99,115 @@ object NearbyPlaces {
         val a = sin(dLat / 2) * sin(dLat / 2) +
             cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLon / 2) * sin(dLon / 2)
         return (r * 2 * atan2(sqrt(a), sqrt(1 - a))).toInt()
+    }
+
+    /** The widest radius we search (see [findFoodSpots]); used only for user-facing copy. */
+    const val WIDEST_RADIUS_M = 8000
+
+    /**
+     * User-facing status when a search returns nothing, e.g. "No eating spots found within 8km".
+     * Pure string helper so it can be unit-tested without Android. Uses a plain hyphen, no em-dash.
+     */
+    fun noResultsMessage(widestRadiusM: Int = WIDEST_RADIUS_M): String {
+        val km = (widestRadiusM / 1000.0).let {
+            // Show a whole number when it is one (8.0 -> "8"), else one decimal.
+            if (it == it.roundToInt().toDouble()) it.roundToInt().toString() else String.format("%.1f", it)
+        }
+        return "No eating spots found within ${km}km"
+    }
+}
+
+/**
+ * Obtains a device location for the "find eating spots" flow.
+ *
+ * Root cause of the old bug: it relied on FusedLocationProviderClient.lastLocation, which is
+ * frequently null on real devices (fresh boot, no recent GPS consumer, battery-saver). We now do
+ * an ACTIVE fetch via getCurrentLocation(PRIORITY_HIGH_ACCURACY), which powers up the sensors and
+ * returns a fresh fix, and only fall back to lastLocation if that yields nothing.
+ */
+object LocationFetcher {
+    private const val TAG = "NearbyPlaces"
+
+    /** Simple result so the UI can render the right status without catching exceptions itself. */
+    sealed interface Result {
+        data class Ok(val lat: Double, val lng: Double) : Result
+        /** Location services (GPS/network) are turned OFF at the OS level. */
+        object ServicesOff : Result
+        /** Permission missing (should be handled before calling, but guarded anyway). */
+        object PermissionDenied : Result
+        /** Fetch ran but produced no usable fix within the timeout. */
+        object NoFix : Result
+    }
+
+    /**
+     * Actively fetches a location. Must be called only after fine/coarse permission is granted.
+     * [timeoutMs] guards against the UI hanging if the sensors never return a fix.
+     */
+    @SuppressLint("MissingPermission") // caller guarantees permission (guarded again below)
+    suspend fun fetch(context: Context, timeoutMs: Long = 12_000): Result {
+        if (!hasPermission(context)) {
+            Log.w(TAG, "fetch aborted: location permission not granted")
+            return Result.PermissionDenied
+        }
+        if (!servicesEnabled(context)) {
+            Log.w(TAG, "fetch aborted: OS location services are OFF")
+            return Result.ServicesOff
+        }
+
+        val client = LocationServices.getFusedLocationProviderClient(context.applicationContext)
+        val cts = CancellationTokenSource()
+
+        val fix = withTimeoutOrNull(timeoutMs) {
+            // 1) Active high-accuracy fetch - powers up sensors, works even with no cached fix.
+            val current = runCatching {
+                suspendCancellableCoroutine<android.location.Location?> { cont ->
+                    client.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cts.token)
+                        .addOnSuccessListener { cont.resume(it) }
+                        .addOnFailureListener { e ->
+                            Log.w(TAG, "getCurrentLocation failed: ${e.message}")
+                            cont.resume(null)
+                        }
+                    cont.invokeOnCancellation { cts.cancel() }
+                }
+            }.getOrNull()
+            if (current != null) return@withTimeoutOrNull current
+
+            // 2) Fallback to the last cached fix if the active fetch came back null.
+            Log.d(TAG, "getCurrentLocation null, falling back to lastLocation")
+            runCatching {
+                suspendCancellableCoroutine<android.location.Location?> { cont ->
+                    client.lastLocation
+                        .addOnSuccessListener { cont.resume(it) }
+                        .addOnFailureListener { e ->
+                            Log.w(TAG, "lastLocation failed: ${e.message}")
+                            cont.resume(null)
+                        }
+                }
+            }.getOrNull()
+        }
+
+        cts.cancel()
+        return if (fix != null) {
+            Log.d(TAG, "got fix: ${fix.latitude},${fix.longitude}")
+            Result.Ok(fix.latitude, fix.longitude)
+        } else {
+            Log.w(TAG, "no fix obtained within ${timeoutMs}ms")
+            Result.NoFix
+        }
+    }
+
+    private fun hasPermission(context: Context): Boolean {
+        val fine = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.ACCESS_FINE_LOCATION,
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val coarse = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.ACCESS_COARSE_LOCATION,
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        return fine || coarse
+    }
+
+    private fun servicesEnabled(context: Context): Boolean {
+        val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return false
+        return LocationManagerCompat.isLocationEnabled(lm)
     }
 }

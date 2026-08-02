@@ -72,10 +72,11 @@ class ReflectionVMFactory(
     private val pastMemory: String,
     private val tone: String,
     private val onUserMessage: (String) -> Unit,
+    private val onTakeaway: (com.rootapp.data.Insights.Takeaway) -> Unit = {},
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-        ReflectionViewModel(llm, userName, pastMemory, tone, onUserMessage) as T
+        ReflectionViewModel(llm, userName, pastMemory, tone, onUserMessage, onTakeaway) as T
 }
 
 @Composable
@@ -103,15 +104,31 @@ fun ReflectionScreen(
                 if (!sessionLogged) { sessionLogged = true; bgScope.launch { supabase.pushReflection(msgCount) } }
                 // Auto-log food mentioned during the session into Moments.
                 bgScope.launch {
-                    val m = com.rootapp.ai.FoodExtractor.extract(AppModule.llmClient, it)
-                    if (m != null) {
-                        store.addFood(m.food, m.healthy, System.currentTimeMillis())
-                        supabase.pushFood(m.food, m.healthy)
+                    val meals = com.rootapp.ai.FoodExtractor.extract(AppModule.llmClient, it)
+                    meals.forEach { meal ->
+                        store.addFood(meal.food, meal.healthy, System.currentTimeMillis())
+                        supabase.pushFood(meal.food, meal.healthy)
                     }
                 }
             },
+            // Persist the distilled session takeaway so Home can nudge on it next time.
+            onTakeaway = { store.addTakeaway(it.concern, it.intention, System.currentTimeMillis()) },
         ),
     )
+
+    // End the session on an app-scoped coroutine when the user leaves the screen. We use an
+    // application-lifetime scope (not viewModelScope, which is already cancelling by then) so the
+    // best-effort AI takeaway call actually gets a chance to complete and persist.
+    val appScope = remember {
+        kotlinx.coroutines.CoroutineScope(
+            kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main,
+        )
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            vm.endSession(appScope)
+        }
+    }
 
     // ---- voice session (premium): speak with the friend, it replies aloud ----
     val premium = remember { com.rootapp.data.SettingsStore(context).premium }

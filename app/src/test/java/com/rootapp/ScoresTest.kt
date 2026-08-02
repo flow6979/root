@@ -13,6 +13,12 @@ class ScoresTest {
         assertNull(Scores.eating(0, 0))
     }
 
+    @Test fun `eatingWeighted delegates to MealHealth`() {
+        assertNull(Scores.eatingWeighted(emptyList()))
+        assertTrue((Scores.eatingWeighted(listOf("salad", "grilled chicken")) ?: 0) >= 75)
+        assertTrue((Scores.eatingWeighted(listOf("pizza", "fries")) ?: 100) <= 30)
+    }
+
     @Test fun `mood maps 0-4 to 0-100`() {
         assertEquals(100, Scores.mood(listOf(4, 4)))
         assertEquals(50, Scores.mood(listOf(2)))

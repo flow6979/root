@@ -7,6 +7,7 @@ import com.rootapp.ai.LlmClient
 import com.rootapp.ai.Prompts
 import com.rootapp.analytics.Events
 import com.rootapp.analytics.Track
+import com.rootapp.data.Insights
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +23,12 @@ class ReflectionViewModel(
     pastMemory: String = "",
     tone: String = "Gentle",
     private val onUserMessage: (String) -> Unit = {},
+    /**
+     * Called once, when the session ends, with the distilled takeaway (main concern + one
+     * intention). Wired by the screen to persist it via LocalStore. Best-effort by contract:
+     * implementations must not throw. Default no-op keeps the ViewModel usable in tests.
+     */
+    private val onTakeaway: (Insights.Takeaway) -> Unit = {},
 ) : ViewModel() {
 
     data class UiState(
@@ -68,6 +75,50 @@ class ReflectionViewModel(
 
     fun clearError() {
         _state.value = _state.value.copy(error = null)
+    }
+
+    /** True once the user has actually said something worth distilling into a takeaway. */
+    private fun hasUserContent(): Boolean = transcript.any { it.role == "user" }
+
+    /** Guards against extracting/persisting a takeaway more than once per session. */
+    private var takeawayDone = false
+
+    /**
+     * End the session: ask the LLM for a SHORT structured takeaway (main concern + one intention,
+     * each under ~120 chars) from the transcript so far, then hand it to [onTakeaway] for
+     * persistence. Best-effort by design - if the AI fails or the session is empty, we quietly do
+     * nothing (never crash, never surface an error). Idempotent within a session.
+     *
+     * Runs on [scope] (defaults to [viewModelScope]) so it can be awaited from a test, or fired
+     * from [onCleared] where the ViewModel scope is already cancelling.
+     */
+    fun endSession(scope: kotlinx.coroutines.CoroutineScope = viewModelScope) {
+        if (takeawayDone || !hasUserContent()) return
+        takeawayDone = true
+        val convo = transcript.toList()
+        scope.launch {
+            val takeaway = runCatching { extractTakeaway(convo) }.getOrDefault(Insights.Takeaway("", ""))
+            if (takeaway.concern.isNotBlank() || takeaway.intention.isNotBlank()) {
+                runCatching { onTakeaway(takeaway) }
+            }
+        }
+    }
+
+    /** Ask the model for the takeaway and parse it. Isolated so failures stay contained. */
+    private suspend fun extractTakeaway(convo: List<ChatMessage>): Insights.Takeaway {
+        val instruction = ChatMessage.user(
+            "Summarise this conversation as the user's ONE main concern and ONE intention they " +
+                "landed on. Reply in EXACTLY this format, each under 120 characters, no extra " +
+                "text:\nConcern: <their main concern>\nIntention: <the one thing they want to do>",
+        )
+        val reply = llm.complete(convo + instruction)
+        return Insights.parseTakeaway(reply)
+    }
+
+    /** When the ViewModel is torn down (user leaves the screen), capture the takeaway. */
+    override fun onCleared() {
+        endSession()
+        super.onCleared()
     }
 
     private fun visibleFrom(all: List<ChatMessage>): List<ChatMessage> =

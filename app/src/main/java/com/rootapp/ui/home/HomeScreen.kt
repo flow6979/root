@@ -13,6 +13,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
@@ -24,7 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -38,6 +39,7 @@ import com.rootapp.ui.common.Orb
 import com.rootapp.ui.theme.LocalRootPalette
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import kotlin.math.roundToInt
 
 @Composable
 fun HomeScreen(
@@ -65,19 +67,30 @@ fun HomeScreen(
             else -> "Winding down. How do you feel?"
         }
     }
-    // Wellbeing score from all signals we have. Screen time read once (needs Usage access).
-    val screenScore = remember {
+    // Daily-average screen-time in minutes, read once (needs Usage access). null when not granted.
+    val screenDailyAvgMin = remember {
         if (com.rootapp.shield.ShieldPermissions.hasUsageAccess(context)) {
-            com.rootapp.data.Scores.screen(
-                com.rootapp.shield.UsageStatsReader.dailyAverageMinutes(com.rootapp.shield.UsageStatsReader.lastSevenDays(context)),
+            com.rootapp.shield.UsageStatsReader.dailyAverageMinutes(
+                com.rootapp.shield.UsageStatsReader.lastSevenDays(context),
             )
         } else null
     }
-    // Depends on selectedMood so it recomputes right after a check-in.
-    val moodScore = run { selectedMood; com.rootapp.data.Scores.mood(store.moods().takeLast(7).map { it.mood }) }
-    val foods = store.foods()
-    val eatingScore = com.rootapp.data.Scores.eating(foods.count { it.healthy }, foods.count { !it.healthy })
-    val wellbeing = com.rootapp.data.Scores.overall(listOfNotNull(moodScore, eatingScore, screenScore))
+    // Richer, weighted, explainable wellbeing score. Depends on selectedMood + streak so it
+    // recomputes right after a check-in. Only signals actually present are weighted (missing data
+    // is renormalised away, never penalised).
+    val wellbeingResult = run {
+        selectedMood
+        com.rootapp.data.WellbeingScore.compute(
+            com.rootapp.data.WellbeingScore.Inputs(
+                recentMoods = store.moods().takeLast(7).map { it.mood },
+                foodLabels = store.foods().map { it.label },
+                screenDailyAvgMin = screenDailyAvgMin,
+                streakDays = streak,
+                reflectionCount = store.memory().size,
+            ),
+        )
+    }
+    val wellbeing = wellbeingResult.overall
 
     Column(
         modifier = modifier
@@ -129,15 +142,24 @@ fun HomeScreen(
                 title = { Text("How your score works") },
                 text = {
                     Column {
-                        Text("It's the average of what we can measure right now, each out of 100:", fontSize = 13.sp)
+                        Text(
+                            "It's a weighted blend of what we can measure right now, each out of 100. " +
+                                "We only weight the signals you have data for:",
+                            fontSize = 13.sp,
+                        )
                         Spacer(Modifier.height(10.dp))
-                        Text("• Mood: ${moodScore?.let { "$it" } ?: "—"}  (from your check-ins)", fontSize = 13.sp)
-                        Text("• Eating: ${eatingScore?.let { "$it" } ?: "—"}  (share of healthy meals)", fontSize = 13.sp)
-                        Text("• Screen time: ${screenScore?.let { "$it" } ?: "—"}  (less is better)", fontSize = 13.sp)
+                        if (wellbeingResult.components.isEmpty()) {
+                            Text("Nothing logged yet - check in, log a meal, or reflect to start your score.", fontSize = 13.sp)
+                        } else {
+                            wellbeingResult.components.forEach { c ->
+                                val pct = (c.weight * 100).roundToInt()
+                                Text("• ${c.label}: ${c.subScore}  (weight $pct%)", fontSize = 13.sp)
+                            }
+                        }
                         Spacer(Modifier.height(10.dp))
                         Text(
                             "Overall: ${wellbeing?.let { "$it/100" } ?: "not enough data yet"}. " +
-                                "As you check in, log meals, and grant Usage access, it gets more accurate.",
+                                "As you check in, log meals, reflect, and grant Usage access, it gets more accurate.",
                             fontSize = 13.sp,
                         )
                     }
@@ -177,30 +199,48 @@ fun HomeScreen(
                 Text(moodPrompt, fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold, color = palette.onSurface)
                 Text("One tap. Helps Root learn your rhythm.", fontSize = 12.sp, color = palette.dim)
-                Spacer(Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround,
-                ) {
-                    listOf("😔", "😐", "🙂", "😌", "⚡️").forEachIndexed { i, emoji ->
-                        Text(
-                            text = emoji,
-                            fontSize = 26.sp,
-                            modifier = Modifier
-                                .alpha(if (selectedMood == null || selectedMood == i) 1f else 0.35f)
-                                .clickable {
-                                    streak = store.addMood(i, today, System.currentTimeMillis())
-                                    selectedMood = i
-                                    Track.event(Events.MOOD_LOGGED)
-                                    scope.launch { supabase.pushMood(today, i) }
-                                },
-                        )
-                    }
-                }
+                Spacer(Modifier.height(14.dp))
+                // Clean 1-5 segmented check-in. One tap saves the mood (still index 0..4) and keeps
+                // the wellbeing score + mood state in sync. Intentional and low-emoji by design.
+                MoodSelector(
+                    selected = selectedMood,
+                    onSelect = { i ->
+                        streak = store.addMood(i, today, System.currentTimeMillis())
+                        selectedMood = i
+                        Track.event(Events.MOOD_LOGGED)
+                        scope.launch { supabase.pushMood(today, i) }
+                    },
+                )
             }
         }
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(16.dp))
+
+        // ---- "For you": data-driven insight cards ----
+        val insights = remember(selectedMood, streak) {
+            val top = if (com.rootapp.shield.ShieldPermissions.hasUsageAccess(context)) {
+                com.rootapp.shield.UsageStatsReader.topApps(context, limit = 1).firstOrNull()
+            } else null
+            com.rootapp.data.Insights.build(
+                com.rootapp.data.Insights.Inputs(
+                    screenDailyAvgMin = screenDailyAvgMin,
+                    topAppLabel = top?.label,
+                    topAppMinutes = top?.minutes ?: 0,
+                    foodLabels = store.foods().map { it.label },
+                    recentMoods = store.moods().takeLast(7).map { it.mood },
+                    latestIntention = store.latestTakeaway()?.intention,
+                ),
+            )
+        }
+        if (insights.isNotEmpty()) {
+            Text("For you", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
+            Spacer(Modifier.height(10.dp))
+            insights.forEach { card ->
+                InsightCardView(card)
+                Spacer(Modifier.height(10.dp))
+            }
+            Spacer(Modifier.height(10.dp))
+        }
 
         Button(
             onClick = onStartReflection,
@@ -220,5 +260,63 @@ fun HomeScreen(
             color = palette.dim,
             modifier = Modifier.fillMaxWidth(),
         )
+    }
+}
+
+/**
+ * A clean 1-5 segmented mood check-in. Five labelled pills (Low .. Great) map to mood index 0..4.
+ * The chosen pill is filled with the accent; the rest stay quiet. One tap = one save. Intentional
+ * and calm - a deliberate move away from the old raw-emoji row.
+ */
+@Composable
+private fun MoodSelector(
+    selected: Int?,
+    onSelect: (Int) -> Unit,
+) {
+    val palette = LocalRootPalette.current
+    val labels = listOf("Low", "Meh", "Okay", "Good", "Great")
+    val onAccent = if (palette.dark) androidx.compose.ui.graphics.Color(0xFF06101F) else androidx.compose.ui.graphics.Color.White
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        labels.forEachIndexed { i, label ->
+            val chosen = selected == i
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(38.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (chosen) palette.accent else palette.accentSoft)
+                    .clickable { onSelect(i) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = label,
+                    fontSize = 12.sp,
+                    fontWeight = if (chosen) FontWeight.SemiBold else FontWeight.Normal,
+                    color = if (chosen) onAccent else palette.onSurface,
+                )
+            }
+        }
+    }
+}
+
+/** A single glassy "For you" insight: title, observation, and a gentle suggestion line. */
+@Composable
+private fun InsightCardView(card: com.rootapp.data.Insights.InsightCard) {
+    val palette = LocalRootPalette.current
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = palette.surface),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(card.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
+            Spacer(Modifier.height(4.dp))
+            Text(card.body, fontSize = 13.sp, color = palette.onSurface)
+            Spacer(Modifier.height(6.dp))
+            Text(card.suggestion, fontSize = 13.sp, color = palette.accent)
+        }
     }
 }

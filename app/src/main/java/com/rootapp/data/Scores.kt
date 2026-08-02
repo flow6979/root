@@ -11,6 +11,15 @@ object Scores {
         return (100.0 * healthy / total).roundToInt()
     }
 
+    /**
+     * Weighted eating score (0..100) over the labels of logged meals, oldest-first. Delegates to
+     * [MealHealth]: every meal gets a curated health weight, aggregated with a recency bias so the
+     * score tracks current habits. null when no meals are logged. Preferred over [eating] for a
+     * nuanced, non-binary view; [eating] is kept for backward compatibility.
+     */
+    fun eatingWeighted(foodLabels: List<String>): Int? =
+        MealHealth.aggregate(foodLabels.map { MealHealth.scoreMeal(it).score })
+
     /** Mood: average of recent moods (each 0..4) mapped to 0..100. */
     fun mood(values: List<Int>): Int? =
         if (values.isEmpty()) null else (values.average() / 4.0 * 100).roundToInt()

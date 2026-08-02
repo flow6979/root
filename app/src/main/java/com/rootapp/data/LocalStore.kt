@@ -64,6 +64,26 @@ class LocalStore(context: Context) {
 
     fun recentMemory(limit: Int = 6): List<String> = memory().takeLast(limit)
 
+    // ---- session takeaways (a short "main concern + intention" per reflection session) ----
+    /** All stored session takeaways, oldest-first. */
+    fun takeaways(): List<SessionTakeaway> = decode(prefs.getString(TAKEAWAYS, null), SessionTakeaway.serializer())
+
+    /**
+     * Persist a session takeaway; keeps only the most recent [cap]. Best-effort: a blank concern
+     * AND blank intention is ignored (nothing worth surfacing). Safe to call from a background
+     * coroutine after a reflection session ends.
+     */
+    fun addTakeaway(concern: String, intention: String, now: Long, cap: Int = 20) {
+        val c = concern.trim()
+        val i = intention.trim()
+        if (c.isEmpty() && i.isEmpty()) return
+        val list = (takeaways() + SessionTakeaway(now, c, i)).takeLast(cap)
+        prefs.edit().putString(TAKEAWAYS, encode(list, SessionTakeaway.serializer())).apply()
+    }
+
+    /** Most recent stored takeaway, or null when none exist yet. */
+    fun latestTakeaway(): SessionTakeaway? = takeaways().lastOrNull()
+
     // ---- interrupt stats ----
     fun incInterruptShown() = prefs.edit().putInt(I_SHOWN, prefs.getInt(I_SHOWN, 0) + 1).apply()
     fun incInterruptPaused() = prefs.edit().putInt(I_PAUSED, prefs.getInt(I_PAUSED, 0) + 1).apply()
@@ -86,5 +106,6 @@ class LocalStore(context: Context) {
         private const val I_SHOWN = "interrupt_shown"
         private const val I_PAUSED = "interrupt_paused"
         private const val MEMORY = "memory_msgs"
+        private const val TAKEAWAYS = "session_takeaways"
     }
 }

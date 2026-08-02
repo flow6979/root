@@ -1,5 +1,6 @@
 package com.rootapp.shield
 
+import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.pm.PackageManager
@@ -32,6 +33,86 @@ object UsageStatsReader {
 
     fun weeklyTotalMinutes(days: List<DayUsage>): Int = days.sumOf { it.minutes }
     fun dailyAverageMinutes(days: List<DayUsage>): Int = if (days.isEmpty()) 0 else weeklyTotalMinutes(days) / days.size
+
+    /** Total foreground minutes for the 7 days ending [daysAgo] days back (0 = the last 7 days). */
+    private fun weekTotalMinutes(context: Context, daysAgo: Int): Int {
+        val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+        cal.add(Calendar.DAY_OF_YEAR, -(daysAgo + 6))
+        val start = cal.timeInMillis
+        val end = start + 7L * 24 * 60 * 60 * 1000
+        val totalMs = usm.queryAndAggregateUsageStats(start, end).values.sumOf { it.totalTimeInForeground }
+        return (totalMs / 60000).toInt()
+    }
+
+    /** This week's foreground total (last 7 days). */
+    fun thisWeekMinutes(context: Context): Int = weekTotalMinutes(context, 0)
+
+    /** The prior week's foreground total (days 8-14 back), for the week-over-week trend. */
+    fun lastWeekMinutes(context: Context): Int = weekTotalMinutes(context, 7)
+
+    /**
+     * Foreground intervals (per app) over the last 7 days, reconstructed from raw usage events so we
+     * can measure late-night use. Each MOVE_TO_FOREGROUND is paired with the next MOVE_TO_BACKGROUND.
+     * Excludes our own app so previewing the pause never counts against the user.
+     */
+    fun foregroundIntervals(context: Context): List<ShieldInsights.Interval> {
+        val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val end = System.currentTimeMillis()
+        val start = end - 7L * 24 * 60 * 60 * 1000
+        val events = usm.queryEvents(start, end)
+        val e = UsageEvents.Event()
+        val openedAt = HashMap<String, Long>()
+        val out = mutableListOf<ShieldInsights.Interval>()
+        while (events.hasNextEvent()) {
+            events.getNextEvent(e)
+            val pkg = e.packageName ?: continue
+            if (pkg == context.packageName) continue
+            when (e.eventType) {
+                UsageEvents.Event.MOVE_TO_FOREGROUND -> openedAt[pkg] = e.timeStamp
+                UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                    val from = openedAt.remove(pkg) ?: continue
+                    if (e.timeStamp > from) out += ShieldInsights.Interval(from, e.timeStamp)
+                }
+            }
+        }
+        return out
+    }
+
+    /** Local midnight (start of today) in millis - the reference point for the 11pm cutoff. */
+    fun todayStartMillis(): Long {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
+    }
+
+    /**
+     * Late-night minutes over the last 7 days: for each of the 7 days we clip its intervals to the
+     * 11pm cutoff for that specific day and sum. Uses [todayStartMillis] shifted back day by day so
+     * the cutoff tracks real local midnights (incl. any DST shift the Calendar applies).
+     */
+    fun lateNightMinutesLastWeek(context: Context): Int {
+        val intervals = foregroundIntervals(context)
+        if (intervals.isEmpty()) return 0
+        var total = 0
+        for (d in 0..6) {
+            val cal = Calendar.getInstance()
+            cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+            cal.add(Calendar.DAY_OF_YEAR, -d)
+            val dayStart = cal.timeInMillis
+            val dayEnd = dayStart + 24L * 60 * 60 * 1000
+            // Only intervals that touch this day, clipped to it, so we don't double-count.
+            val forDay = intervals
+                .filter { it.end > dayStart && it.start < dayEnd }
+                .map { ShieldInsights.Interval(maxOf(it.start, dayStart), minOf(it.end, dayEnd)) }
+            total += ShieldInsights.lateNightMinutes(forDay, dayStart)
+        }
+        return total
+    }
 
     private val ignoredHints = listOf(
         "launcher", "systemui", "com.android.settings", "inputmethod",
