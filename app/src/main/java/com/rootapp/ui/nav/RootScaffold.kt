@@ -1,6 +1,8 @@
 package com.rootapp.ui.nav
 
-import androidx.compose.foundation.background
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -26,7 +28,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -36,6 +37,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.rootapp.ui.common.PlaceholderScreen
+import com.rootapp.ui.common.SkyBackground
 import com.rootapp.ui.home.HomeScreen
 import com.rootapp.ui.reflection.ReflectionScreen
 import com.rootapp.data.SettingsStore
@@ -79,7 +81,6 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
             com.rootapp.ui.auth.AuthScreen(onAuthed = { authed = true })
             return@RootTheme
         }
-        val palette = LocalRootPalette.current
         val navController = rememberNavController()
         val backStack by navController.currentBackStackEntryAsState()
         val currentRoute = backStack?.destination
@@ -127,10 +128,21 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(Brush.verticalGradient(listOf(palette.bg1, palette.bg2)))
                     .padding(inner),
             ) {
-                NavHost(navController = navController, startDestination = Tab.HOME.route) {
+                SkyBackground(
+                    hour = currentHour,
+                    minimalist = minimalist,
+                    modifier = Modifier.matchParentSize(),
+                )
+                NavHost(
+                    navController = navController,
+                    startDestination = Tab.HOME.route,
+                    enterTransition = { fadeIn(tween(220)) },
+                    exitTransition = { fadeOut(tween(160)) },
+                    popEnterTransition = { fadeIn(tween(220)) },
+                    popExitTransition = { fadeOut(tween(160)) },
+                ) {
                     composable(Tab.HOME.route) {
                         HomeScreen(
                             userName = userName,
