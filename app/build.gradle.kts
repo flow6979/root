@@ -12,13 +12,20 @@ val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
-val groqKey: String = (localProps.getProperty("GROQ_API_KEY")
+// Public build: `./gradlew assembleRelease -PpublicBuild` strips the PAID secret keys
+// (Groq, ElevenLabs) so the APK is safe to publish. The Supabase ANON key is intentionally
+// kept - it is a public client key protected by row-level security, designed to ship in apps.
+// In a public build, built-in AI falls back to offline demo unless the user adds their own
+// Gemini key (You -> AI); voice output uses the free no-key TTS.
+val publicBuild = project.hasProperty("publicBuild")
+
+val groqKey: String = if (publicBuild) "" else (localProps.getProperty("GROQ_API_KEY")
     ?: System.getenv("GROQ_API_KEY") ?: "").trim()
 val supabaseUrl: String = (localProps.getProperty("SUPABASE_URL")
     ?: System.getenv("SUPABASE_URL") ?: "").trim()
 val supabaseAnonKey: String = (localProps.getProperty("SUPABASE_ANON_KEY")
     ?: System.getenv("SUPABASE_ANON_KEY") ?: "").trim()
-val elevenKey: String = (localProps.getProperty("ELEVENLABS_API_KEY")
+val elevenKey: String = if (publicBuild) "" else (localProps.getProperty("ELEVENLABS_API_KEY")
     ?: System.getenv("ELEVENLABS_API_KEY") ?: "").trim()
 
 val releaseStoreFile: String? = localProps.getProperty("RELEASE_STORE_FILE")
@@ -42,8 +49,8 @@ android {
         applicationId = "com.rootapp"
         minSdk = 26
         targetSdk = 34
-        versionCode = 17
-        versionName = "0.3.0"
+        versionCode = 18
+        versionName = "0.3.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "GROQ_API_KEY", "\"$groqKey\"")
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
