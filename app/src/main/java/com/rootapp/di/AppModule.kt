@@ -3,6 +3,7 @@ package com.rootapp.di
 import android.content.Context
 import com.rootapp.BuildConfig
 import com.rootapp.ai.FakeLlmClient
+import com.rootapp.ai.FallbackLlmClient
 import com.rootapp.ai.GeminiClient
 import com.rootapp.ai.GroqClient
 import com.rootapp.ai.LlmClient
@@ -32,25 +33,31 @@ object AppModule {
 
     val llmClient: LlmClient
         get() {
+            val base = baseEngine()
             val gemini = userGeminiKey()
-            if (gemini.isNotBlank()) return GeminiClient(apiKey = gemini)
-            if (Proxy.enabled) {
-                return GroqClient(
-                    apiKey = "via-proxy", // ignored by the proxy, which injects the real key
-                    baseUrl = Proxy.baseUrl + "/openai/v1/",
-                    extraHeaders = Proxy.headers(),
-                )
-            }
-            val groq = BuildConfig.GROQ_API_KEY
-            return if (groq.isBlank()) {
-                FakeLlmClient(
-                    "I'm running in offline demo mode right now, but I'm still here. " +
-                        "What's on your mind?",
-                )
-            } else {
-                GroqClient(apiKey = groq)
-            }
+            // Prefer the user's Gemini key, but fall back to Root's engine if their key fails.
+            return if (gemini.isNotBlank()) FallbackLlmClient(GeminiClient(apiKey = gemini), base) else base
         }
+
+    /** Root's own engine: the proxy if configured, else a baked Groq key (dev), else demo. */
+    private fun baseEngine(): LlmClient {
+        if (Proxy.enabled) {
+            return GroqClient(
+                apiKey = "via-proxy", // ignored by the proxy, which injects the real key
+                baseUrl = Proxy.baseUrl + "/openai/v1/",
+                extraHeaders = Proxy.headers(),
+            )
+        }
+        val groq = BuildConfig.GROQ_API_KEY
+        return if (groq.isBlank()) {
+            FakeLlmClient(
+                "I'm running in offline demo mode right now, but I'm still here. " +
+                    "What's on your mind?",
+            )
+        } else {
+            GroqClient(apiKey = groq)
+        }
+    }
 
     /** Short label of the active provider, for display in Settings. */
     fun activeProviderLabel(): String = when {

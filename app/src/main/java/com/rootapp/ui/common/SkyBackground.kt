@@ -51,7 +51,7 @@ fun SkyBackground(hour: Int, minimalist: Boolean, modifier: Modifier = Modifier)
     val stars = remember {
         var seed = 20260802
         fun rnd(): Float { seed = (seed * 1103515245 + 12345) and 0x7fffffff; return (seed % 1000) / 1000f }
-        List(48) { Triple(rnd(), rnd() * 0.55f, rnd()) } // x-fraction, y-fraction (upper sky), phase
+        List(70) { Triple(rnd(), rnd() * 0.78f, rnd()) } // x-fraction, y-fraction (most of the sky), phase
     }
 
     Canvas(modifier.fillMaxSize()) {
@@ -88,10 +88,11 @@ fun SkyBackground(hour: Int, minimalist: Boolean, modifier: Modifier = Modifier)
             val m = if (minutesOfDay >= 1140) minutesOfDay else minutesOfDay + 1440
             (m - 1140) / 600f
         }.coerceIn(0f, 1f)
-        val cx = (0.16f + 0.68f * p) * w
+        // Big, real-sky arc: rises low on the left, sweeps high across the top, sets low on the right.
+        val cx = (0.12f + 0.76f * p) * w
         val altitude = sin((p * PI).toFloat()) // 0 at horizon, 1 at peak
-        val cy = (0.72f - 0.58f * altitude) * h + bob * 4f
-        val r = minOf(w, h) * 0.066f
+        val cy = (0.90f - 0.78f * altitude) * h + bob * 5f
+        val r = minOf(w, h) * 0.072f
 
         // soft glow
         drawCircle(

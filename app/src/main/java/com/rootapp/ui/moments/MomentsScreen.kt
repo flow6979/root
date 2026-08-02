@@ -61,7 +61,6 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
     val supabase = remember { SupabaseRepository(context) }
     val geofence = remember { GeofenceManager(context) }
     val scope = rememberCoroutineScope()
-    val premium = remember { SettingsStore(context).premium }
     var foods by remember { mutableStateOf(store.foods().reversed()) }
     var showDialog by remember { mutableStateOf(false) }
     var watchStatus by remember { mutableStateOf<String?>(null) }
@@ -308,15 +307,11 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
         }
         Spacer(Modifier.height(8.dp))
         OutlinedButton(
-            onClick = {
-                if (premium) logByVoice()
-                else Toast.makeText(context, "Voice logging is a premium feature", Toast.LENGTH_SHORT).show()
-            },
+            onClick = { logByVoice() },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
                 when {
-                    !premium -> "🎤 Log by voice (Premium)"
                     foodSaving -> "Saving…"
                     foodRecording -> "⏹ Stop & save"
                     else -> "🎤 Log by voice"

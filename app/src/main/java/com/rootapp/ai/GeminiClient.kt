@@ -1,5 +1,6 @@
 package com.rootapp.ai
 
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -18,18 +19,16 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 
 /**
- * Google Gemini chat client (Generative Language API).
+ * Google Gemini chat client (Generative Language API), used when the user supplies their own
+ * key in You -> AI. Implements the same [LlmClient] contract as [GroqClient].
  *
- * Used when the user supplies their own Gemini API key in Settings, so their AI runs on
- * their own free quota. It implements the same [LlmClient] contract as [GroqClient], so
- * every screen and ViewModel works unchanged regardless of which provider is active.
- *
- * ChatMessage roles map to Gemini as: system -> system_instruction, assistant -> "model",
- * user -> "user".
+ * Robustness: newly-created API keys often only have access to the 2.x models (1.5 is retired),
+ * and different keys expose different names, so we try a small list of current models and use
+ * the first that answers. Field names are camelCase per the REST API.
  */
 class GeminiClient(
     private val apiKey: String,
-    private val model: String = "gemini-1.5-flash",
+    private val models: List<String> = listOf("gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash"),
     private val baseUrl: String = "https://generativelanguage.googleapis.com/v1beta",
     private val http: OkHttpClient = OkHttpClient(),
 ) : LlmClient {
@@ -46,7 +45,7 @@ class GeminiClient(
         val payload = buildJsonObject {
             if (system.isNotBlank()) {
                 put(
-                    "system_instruction",
+                    "systemInstruction",
                     buildJsonObject {
                         put("parts", buildJsonArray { add(buildJsonObject { put("text", system) }) })
                     },
@@ -70,22 +69,34 @@ class GeminiClient(
                 buildJsonObject { put("temperature", 0.7); put("maxOutputTokens", 512) },
             )
         }
+        val bodyStr = json.encodeToString(JsonObject.serializer(), payload)
 
-        // Key goes in the query string per the Generative Language API.
-        val url = "$baseUrl/models/$model:generateContent?key=$apiKey"
-        val request = Request.Builder()
-            .url(url)
-            .post(json.encodeToString(JsonObject.serializer(), payload).toRequestBody(jsonMedia))
-            .build()
-
-        http.newCall(request).execute().use { resp ->
-            val text = resp.body?.string().orEmpty()
-            if (!resp.isSuccessful) throw IOException("Gemini HTTP ${resp.code}: ${text.take(300)}")
-            json.parseToJsonElement(text).jsonObject["candidates"]?.jsonArray
-                ?.firstOrNull()?.jsonObject?.get("content")?.jsonObject
-                ?.get("parts")?.jsonArray?.firstOrNull()?.jsonObject
-                ?.get("text")?.jsonPrimitive?.content?.trim()
-                ?: throw IOException("Gemini returned no text")
+        var lastError = "Gemini request failed"
+        for (model in models) {
+            val request = Request.Builder()
+                .url("$baseUrl/models/$model:generateContent?key=$apiKey")
+                .post(bodyStr.toRequestBody(jsonMedia))
+                .build()
+            val outcome = runCatching {
+                http.newCall(request).execute().use { resp ->
+                    val text = resp.body?.string().orEmpty()
+                    if (!resp.isSuccessful) {
+                        lastError = "Gemini ($model) HTTP ${resp.code}: ${text.take(200)}"
+                        Log.w("GeminiClient", lastError)
+                        // 404 = model not available for this key -> try the next model.
+                        // Other codes (bad key, quota) won't be fixed by another model.
+                        if (resp.code == 404 || resp.code == 400) return@use null
+                        throw IOException(lastError)
+                    }
+                    json.parseToJsonElement(text).jsonObject["candidates"]?.jsonArray
+                        ?.firstOrNull()?.jsonObject?.get("content")?.jsonObject
+                        ?.get("parts")?.jsonArray?.firstOrNull()?.jsonObject
+                        ?.get("text")?.jsonPrimitive?.content?.trim()
+                        ?: throw IOException("Gemini returned no text: ${text.take(200)}")
+                }
+            }.getOrElse { throw it }
+            if (outcome != null) return@withContext outcome
         }
+        throw IOException(lastError)
     }
 }
