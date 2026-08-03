@@ -60,6 +60,11 @@ class UsageWatcherService : Service() {
     private var nudged80 = false
     private var nudgedFull = false
 
+    // Move nudges (stationary detection via the step counter).
+    private var lastMoveCheck = 0L
+    private var lastMoveSteps = -1
+    private var lastMoveStamp = 0L
+
     override fun onCreate() {
         super.onCreate()
         usm = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
@@ -108,6 +113,7 @@ class UsageWatcherService : Service() {
             }
             handleSustainedUse(current, monitoredSet, now)
             maybeBudgetNudge(now)
+            maybeMoveNudge(now)
 
             delay(POLL_MS)
         }
@@ -171,6 +177,31 @@ class UsageWatcherService : Service() {
                 Nudges.post(
                     this, "Almost at your screen budget",
                     "You're at ${fmt(total)} of ${fmt(budget)} today - about ${fmt((budget - total).coerceAtLeast(0))} left. Spend it on purpose.",
+                )
+            }
+        }
+    }
+
+    /** Every ~10 min in daytime, nudge to move if the step count has barely changed for 90 min. */
+    private fun maybeMoveNudge(now: Long) {
+        if (now - lastMoveCheck < 10 * 60_000L) return
+        lastMoveCheck = now
+        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        if (hour < 9 || hour >= 21) return
+        if (!SettingsStore(this).overuseNudges || !StepCounter.available(this) ||
+            !StepCounter.hasPermission(this) || !Nudges.canPost(this)
+        ) {
+            return
+        }
+        StepCounter.sampleOnce(this) { s ->
+            if (s == null) return@sampleOnce
+            if (lastMoveSteps < 0 || s - lastMoveSteps >= 150) { lastMoveSteps = s; lastMoveStamp = now; return@sampleOnce }
+            if (now - lastMoveStamp >= 90 * 60_000L && now - lastNudgeAt >= NUDGE_COOLDOWN_MS) {
+                lastMoveStamp = now; lastNudgeAt = now
+                Nudges.post(
+                    this, "Time to move",
+                    "You've been still for a while. A 2-minute walk or a stretch resets your focus and lifts " +
+                        "your mood - your body will thank you.",
                 )
             }
         }

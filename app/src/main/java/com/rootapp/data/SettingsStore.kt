@@ -51,6 +51,11 @@ class SettingsStore(context: Context) {
         get() = prefs.getInt(SCREEN_BUDGET, 0)
         set(v) = prefs.edit().putInt(SCREEN_BUDGET, v.coerceIn(0, 720)).apply()
 
+    /** Daily step goal. */
+    var stepGoal: Int
+        get() = prefs.getInt(STEP_GOAL, 6000)
+        set(v) = prefs.edit().putInt(STEP_GOAL, v.coerceIn(1000, 30000)).apply()
+
     companion object {
         private const val MINIMALIST = "minimalist"
         private const val PERSONALITY = "personality"
@@ -61,5 +66,6 @@ class SettingsStore(context: Context) {
         private const val WIND_DOWN = "wind_down_enabled"
         private const val BEDTIME_HOUR = "bedtime_hour"
         private const val SCREEN_BUDGET = "screen_budget_min"
+        private const val STEP_GOAL = "step_goal"
     }
 }

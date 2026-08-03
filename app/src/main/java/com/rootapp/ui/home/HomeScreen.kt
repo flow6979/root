@@ -1,5 +1,8 @@
 package com.rootapp.ui.home
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.PhoneIphone
 import androidx.compose.material.icons.rounded.Restaurant
@@ -30,6 +34,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -96,6 +101,18 @@ fun HomeScreen(
     }
     val lastSleep = remember { if (hasUsage) com.rootapp.shield.UsageStatsReader.lastNightSleep(context) else null }
     val sleepConsistency = remember { if (hasUsage) com.rootapp.shield.UsageStatsReader.bedtimeConsistency(context) else null }
+    // Steps (on-device step counter).
+    val stepsAvailable = remember { com.rootapp.shield.StepCounter.available(context) }
+    var stepPerm by remember { mutableStateOf(com.rootapp.shield.StepCounter.hasPermission(context)) }
+    var steps by remember { mutableStateOf<Int?>(null) }
+    val stepGoal = remember { com.rootapp.data.SettingsStore(context).stepGoal }
+    val stepPermLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        stepPerm = granted
+        if (granted) com.rootapp.shield.StepCounter.sampleOnce(context) { steps = it }
+    }
+    LaunchedEffect(stepPerm) {
+        if (stepsAvailable && stepPerm) com.rootapp.shield.StepCounter.sampleOnce(context) { steps = it }
+    }
     val wellbeingResult = run {
         selectedMood
         com.rootapp.data.WellbeingScore.compute(
@@ -206,6 +223,36 @@ fun HomeScreen(
                                 (sleepConsistency?.let { " - bedtime consistency $it" } ?: ""),
                             fontSize = 12.sp, color = palette.dim,
                         )
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+        }
+
+        // ---- steps (on-device sensor) ----
+        if (stepsAvailable) {
+            GlassCard(Modifier.enterUp(52)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconTile(Icons.Rounded.DirectionsWalk)
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        SectionLabel("Move")
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            if (stepPerm) "${steps ?: "--"} steps" else "Count your steps",
+                            fontSize = 18.sp, fontWeight = FontWeight.Bold, color = palette.onSurface,
+                        )
+                        Text(
+                            if (stepPerm) "goal $stepGoal" else "On-device only. Tap to enable.",
+                            fontSize = 12.sp, color = palette.dim,
+                        )
+                    }
+                    if (stepPerm && steps != null) {
+                        ScoreRing((steps!! * 100 / stepGoal).coerceIn(0, 100), "of goal", size = 78.dp, stroke = 9.dp)
+                    } else if (!stepPerm) {
+                        OutlinedButton(onClick = { stepPermLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION) }) {
+                            Text("Enable", color = palette.accent)
+                        }
                     }
                 }
             }
