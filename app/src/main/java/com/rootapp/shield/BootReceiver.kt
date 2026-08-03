@@ -16,5 +16,6 @@ class BootReceiver : BroadcastReceiver() {
             runCatching { UsageWatcherService.start(context) }
         }
         runCatching { WindDown.apply(context) }
+        runCatching { WeeklyDigest.schedule(context) }
     }
 }

@@ -87,7 +87,7 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
         val backStack by navController.currentBackStackEntryAsState()
         val currentRoute = backStack?.destination
         val routeName = currentRoute?.route
-        val isNested = routeName == "reflection" || routeName == "voice"
+        val isNested = routeName == "reflection" || routeName == "voice" || routeName == "weekly"
 
         Box(Modifier.fillMaxSize()) {
         SkyBackground(hour = currentHour, minimalist = minimalist, modifier = Modifier.matchParentSize())
@@ -151,9 +151,11 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
                         HomeScreen(
                             userName = userName,
                             onTalk = { navController.navigate("voice") },
+                            onOpenWeekly = { navController.navigate("weekly") },
                         )
                     }
                     composable("reflection") { ReflectionScreen(userName = userName) }
+                    composable("weekly") { com.rootapp.ui.weekly.WeeklyReviewScreen() }
                     composable("voice") {
                         com.rootapp.ui.voice.VoiceSessionScreen(
                             userName = userName,

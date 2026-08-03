@@ -69,6 +69,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".shield.WeeklyDigestReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".shield.BootReceiver"
             android:exported="true">
             <intent-filter>

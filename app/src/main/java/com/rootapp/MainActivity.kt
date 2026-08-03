@@ -19,8 +19,9 @@ class MainActivity : ComponentActivity() {
             val repo = SupabaseRepository(applicationContext)
             if (repo.loggedIn) repo.ensureSession()
         }
-        // Re-arm the nightly wind-down reminder (alarms are cleared on reboot).
+        // Re-arm the nightly wind-down + weekly digest (alarms are cleared on reboot).
         com.rootapp.shield.WindDown.apply(applicationContext)
+        com.rootapp.shield.WeeklyDigest.schedule(applicationContext)
         setContent {
             RootScaffold()
         }

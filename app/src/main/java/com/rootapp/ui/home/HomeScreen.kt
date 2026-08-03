@@ -23,6 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.PhoneIphone
@@ -70,6 +72,7 @@ import kotlin.math.roundToInt
 fun HomeScreen(
     userName: String,
     onTalk: () -> Unit,
+    onOpenWeekly: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalRootPalette.current
@@ -316,7 +319,19 @@ fun HomeScreen(
             Spacer(Modifier.height(6.dp))
         }
 
-        // ---- talk CTAs ----
+        // ---- your week entry ----
+        GlassCard(Modifier.enterUp(200).clickable { onOpenWeekly() }, padding = 16.dp) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconTile(Icons.Rounded.CalendarMonth)
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Your week with Root", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
+                    Text("A 7-day recap and a focus for next week", fontSize = 12.sp, color = palette.dim)
+                }
+                Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = palette.accent)
+            }
+        }
+
         Spacer(Modifier.height(24.dp))
     }
 }
