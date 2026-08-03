@@ -56,6 +56,11 @@ class SettingsStore(context: Context) {
         get() = prefs.getInt(STEP_GOAL, 6000)
         set(v) = prefs.edit().putInt(STEP_GOAL, v.coerceIn(1000, 30000)).apply()
 
+    /** Whether the user has protection on, so we can restart the watcher after a reboot. */
+    var protectionEnabled: Boolean
+        get() = prefs.getBoolean(PROTECTION_ON, false)
+        set(v) = prefs.edit().putBoolean(PROTECTION_ON, v).apply()
+
     companion object {
         private const val MINIMALIST = "minimalist"
         private const val PERSONALITY = "personality"
@@ -67,5 +72,6 @@ class SettingsStore(context: Context) {
         private const val BEDTIME_HOUR = "bedtime_hour"
         private const val SCREEN_BUDGET = "screen_budget_min"
         private const val STEP_GOAL = "step_goal"
+        private const val PROTECTION_ON = "protection_enabled"
     }
 }

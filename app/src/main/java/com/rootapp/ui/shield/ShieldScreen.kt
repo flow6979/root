@@ -52,6 +52,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rootapp.data.SettingsStore
 import com.rootapp.di.AppModule
+import com.rootapp.shield.BatteryOpt
 import com.rootapp.shield.FocusSession
 import com.rootapp.shield.InterruptOverlay
 import com.rootapp.shield.MonitoredApps
@@ -309,6 +310,13 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
                     onClick = { InterruptOverlay(context).showForApp(appLabel = "Instagram", strict = true, onPause = {}, onProceed = {}) },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("Preview the pause") }
+                if (running && !BatteryOpt.isExempt(context)) {
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = { runCatching { context.startActivity(BatteryOpt.settingsIntent()) } },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Keep Root running (battery)") }
+                }
             }
         }
         Spacer(Modifier.height(18.dp))

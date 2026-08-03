@@ -8,5 +8,6 @@ class RootApp : Application() {
     override fun onCreate() {
         super.onCreate()
         AppModule.init(this)
+        com.rootapp.shield.FocusSession.init(this)
     }
 }

@@ -79,6 +79,7 @@ class UsageWatcherService : Service() {
         }
         startAsForeground()
         _running.value = true
+        SettingsStore(this).protectionEnabled = true // so BootReceiver restarts us after a reboot
         scope.launch { pollLoop() }
         return START_STICKY
     }
@@ -252,6 +253,7 @@ class UsageWatcherService : Service() {
 
     private fun stopSelfSafely() {
         _running.value = false
+        SettingsStore(this).protectionEnabled = false
         overlay.dismiss()
         scope.cancel()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) stopForeground(STOP_FOREGROUND_REMOVE)

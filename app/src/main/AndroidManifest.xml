@@ -19,6 +19,8 @@
     <!-- Steps: on-device step counter (no Health Connect) -->
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <uses-feature android:name="android.hardware.sensor.stepcounter" android:required="false" />
+    <!-- Restart protection + wind-down after a reboot -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <queries>
         <intent>
             <action android:name="android.speech.RecognitionService" />
@@ -65,5 +67,13 @@
         <receiver
             android:name=".shield.WindDownReceiver"
             android:exported="false" />
+
+        <receiver
+            android:name=".shield.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
