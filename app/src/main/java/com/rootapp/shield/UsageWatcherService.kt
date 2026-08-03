@@ -54,6 +54,12 @@ class UsageWatcherService : Service() {
     private var lastNudgeAt = 0L
     private var nextNudgeMin = FIRST_NUDGE_MIN
 
+    // Daily screen-time budget nudges (checked at most once a minute).
+    private var lastBudgetCheck = 0L
+    private var budgetDay = -1
+    private var nudged80 = false
+    private var nudgedFull = false
+
     override fun onCreate() {
         super.onCreate()
         usm = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
@@ -101,6 +107,7 @@ class UsageWatcherService : Service() {
                 }
             }
             handleSustainedUse(current, monitoredSet, now)
+            maybeBudgetNudge(now)
 
             delay(POLL_MS)
         }
@@ -139,6 +146,35 @@ class UsageWatcherService : Service() {
     private fun labelFor(pkg: String): String = runCatching {
         packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
     }.getOrDefault(pkg.substringAfterLast('.').replaceFirstChar { it.uppercase() })
+
+    /** Once a minute, nudge at 80% and 100% of the daily screen-time budget (once each per day). */
+    private fun maybeBudgetNudge(now: Long) {
+        if (now - lastBudgetCheck < 60_000L) return
+        lastBudgetCheck = now
+        val budget = SettingsStore(this).screenBudgetMin
+        if (budget <= 0 || !Nudges.canPost(this)) return
+        val day = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
+        if (day != budgetDay) { budgetDay = day; nudged80 = false; nudgedFull = false }
+        val total = UsageStatsReader.todayTotalMinutes(this)
+        val fmt = UsageStatsReader::fmt
+        when {
+            total >= budget && !nudgedFull -> {
+                nudgedFull = true
+                Nudges.post(
+                    this, "You've hit today's screen budget",
+                    "You're at ${fmt(total)}, past your ${fmt(budget)} goal. A good moment to set the " +
+                        "phone down and do one real thing you'll be glad about.",
+                )
+            }
+            total >= budget * 8 / 10 && !nudged80 -> {
+                nudged80 = true
+                Nudges.post(
+                    this, "Almost at your screen budget",
+                    "You're at ${fmt(total)} of ${fmt(budget)} today - about ${fmt((budget - total).coerceAtLeast(0))} left. Spend it on purpose.",
+                )
+            }
+        }
+    }
 
     private fun currentForegroundPackage(now: Long): String? {
         val events = usm.queryEvents(now - LOOKBACK_MS, now)

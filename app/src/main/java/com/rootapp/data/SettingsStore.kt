@@ -46,6 +46,11 @@ class SettingsStore(context: Context) {
         get() = prefs.getInt(BEDTIME_HOUR, 23)
         set(v) = prefs.edit().putInt(BEDTIME_HOUR, v.coerceIn(19, 26) % 24).apply()
 
+    /** Daily screen-time budget in minutes. 0 = off. */
+    var screenBudgetMin: Int
+        get() = prefs.getInt(SCREEN_BUDGET, 0)
+        set(v) = prefs.edit().putInt(SCREEN_BUDGET, v.coerceIn(0, 720)).apply()
+
     companion object {
         private const val MINIMALIST = "minimalist"
         private const val PERSONALITY = "personality"
@@ -55,5 +60,6 @@ class SettingsStore(context: Context) {
         private const val OVERUSE_NUDGES = "overuse_nudges"
         private const val WIND_DOWN = "wind_down_enabled"
         private const val BEDTIME_HOUR = "bedtime_hour"
+        private const val SCREEN_BUDGET = "screen_budget_min"
     }
 }

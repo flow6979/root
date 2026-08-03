@@ -4,6 +4,7 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,11 +23,14 @@ import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.SmartDisplay
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +52,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rootapp.data.SettingsStore
 import com.rootapp.di.AppModule
+import com.rootapp.shield.FocusSession
 import com.rootapp.shield.InterruptOverlay
 import com.rootapp.shield.MonitoredApps
 import com.rootapp.shield.NudgeCalculator
@@ -60,8 +65,10 @@ import com.rootapp.shield.UsageWatcherService
 import com.rootapp.shield.WindDown
 import com.rootapp.ui.common.GlassCard
 import com.rootapp.ui.common.IconTile
+import com.rootapp.ui.common.ScoreRing
 import com.rootapp.ui.common.SectionLabel
 import com.rootapp.ui.common.enterUp
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.rootapp.ui.theme.LocalRootPalette
 
@@ -113,6 +120,22 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
     val needsNotif = android.os.Build.VERSION.SDK_INT >= 33 && !notifGranted
     var windDown by remember { mutableStateOf(settings.windDownEnabled) }
     var bedtime by remember { mutableIntStateOf(settings.bedtimeHour.let { if (it < 12) it + 24 else it }.coerceIn(20, 25)) }
+
+    // Budget + focus state.
+    var budget by remember { mutableIntStateOf(settings.screenBudgetMin) }
+    val todayTotal = remember(permRefresh) { if (hasUsage) UsageStatsReader.todayTotalMinutes(context) else 0 }
+    val focusEnd by FocusSession.endAt.collectAsStateWithLifecycle()
+    var nowTick by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(focusEnd) {
+        while (focusEnd > System.currentTimeMillis()) { nowTick = System.currentTimeMillis(); delay(1000) }
+        nowTick = System.currentTimeMillis()
+    }
+    val focusActive = focusEnd > nowTick
+    val focusRemainingSec = ((focusEnd - nowTick) / 1000L).coerceAtLeast(0L)
+    fun startFocus(min: Int) {
+        FocusSession.start(min)
+        if (ready) UsageWatcherService.start(context) // ensure the blocker is running
+    }
     val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         notifGranted = Nudges.canPost(context)
     }
@@ -175,6 +198,82 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
             }
             Spacer(Modifier.height(18.dp))
         }
+
+        // ---- daily budget ----
+        SectionLabel("Daily budget")
+        Spacer(Modifier.height(8.dp))
+        GlassCard(Modifier.enterUp(90)) {
+            if (budget <= 0) {
+                Text("Set a daily screen-time budget", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
+                Text("Root nudges you at 80% and when you pass it.", fontSize = 12.sp, color = palette.dim)
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(onClick = { budget = 120; settings.screenBudgetMin = 120 }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Set a 2h budget")
+                }
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        SectionLabel("Today")
+                        Spacer(Modifier.height(6.dp))
+                        Text("${UsageStatsReader.fmt(todayTotal)} of ${UsageStatsReader.fmt(budget)}",
+                            fontSize = 18.sp, fontWeight = FontWeight.Bold, color = palette.onSurface)
+                        Text(
+                            if (todayTotal >= budget) "Over budget" else "${UsageStatsReader.fmt(budget - todayTotal)} left",
+                            fontSize = 12.sp,
+                            color = if (todayTotal >= budget) Color(0xFFD0563F) else palette.dim,
+                        )
+                    }
+                    ScoreRing(((todayTotal * 100) / budget).coerceIn(0, 100), "used", size = 78.dp, stroke = 9.dp)
+                }
+                Spacer(Modifier.height(14.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Budget", fontSize = 14.sp, color = palette.onSurface, modifier = Modifier.weight(1f))
+                    OutlinedButton(onClick = { budget = (budget - 30).coerceAtLeast(30); settings.screenBudgetMin = budget }) { Text("-30m") }
+                    Text(UsageStatsReader.fmt(budget), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = palette.accent, modifier = Modifier.padding(horizontal = 12.dp))
+                    OutlinedButton(onClick = { budget = (budget + 30).coerceAtMost(720); settings.screenBudgetMin = budget }) { Text("+30m") }
+                }
+                Spacer(Modifier.height(6.dp))
+                TextButton(onClick = { budget = 0; settings.screenBudgetMin = 0 }) { Text("Turn off", color = palette.accent) }
+            }
+        }
+        Spacer(Modifier.height(18.dp))
+
+        // ---- focus session ----
+        SectionLabel("Focus")
+        Spacer(Modifier.height(8.dp))
+        GlassCard(Modifier.enterUp(120)) {
+            if (!focusActive) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconTile(Icons.Rounded.Timer)
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Focus session", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
+                        Text("Time-sink apps are paused while you focus.", fontSize = 12.sp, color = palette.dim)
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(onClick = { startFocus(25) }, modifier = Modifier.weight(1f)) { Text("25 min") }
+                    OutlinedButton(onClick = { startFocus(50) }, modifier = Modifier.weight(1f)) { Text("50 min") }
+                }
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconTile(Icons.Rounded.Timer)
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Focusing", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = palette.accent)
+                        Text("Time-sink apps are paused.", fontSize = 12.sp, color = palette.dim)
+                    }
+                    Text(
+                        "%d:%02d".format(focusRemainingSec / 60, focusRemainingSec % 60),
+                        fontSize = 20.sp, fontWeight = FontWeight.Bold, color = palette.onSurface,
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(onClick = { FocusSession.end() }, modifier = Modifier.fillMaxWidth()) { Text("End focus") }
+            }
+        }
+        Spacer(Modifier.height(18.dp))
 
         // ---- the gentle pause ----
         SectionLabel("The gentle pause")
