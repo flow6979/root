@@ -34,6 +34,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import com.rootapp.data.Leaderboard
 import com.rootapp.data.LeagueMember
 import com.rootapp.data.LeaderStanding
@@ -141,10 +145,14 @@ fun LeagueScreen(modifier: Modifier = Modifier) {
                 ) { Text(if (refreshing) "Refreshing..." else "Refresh", color = palette.accent) }
             }
         }
-        // Season + cosmetic sky themes are fully local, so they show regardless of backend state.
+        // Challenge, season, and badges are fully local, so they show regardless of backend state.
         if (!loadingUser) {
             Spacer(Modifier.height(14.dp))
+            ChallengeCard(context)
+            Spacer(Modifier.height(14.dp))
             SeasonCard(context)
+            Spacer(Modifier.height(14.dp))
+            BadgesCard(context)
         }
         Spacer(Modifier.height(24.dp))
     }
@@ -253,6 +261,76 @@ private fun DivisionCard(division: List<LeagueMember>, refreshing: Boolean) {
 
 private fun isRelegate(row: LeagueMember, tier: Int, size: Int): Boolean =
     tier > 0 && size > 5 && row.rank > size - 5
+
+/** This week's challenge with a progress bar and bonus. */
+@Composable
+private fun ChallengeCard(context: android.content.Context) {
+    val palette = LocalRootPalette.current
+    val ch = remember { com.rootapp.data.Challenges.current() }
+    val progress = remember { com.rootapp.data.Challenges.progress(context) }
+    val done = progress >= ch.target
+    GlassCard(Modifier.enterUp(50)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SectionLabel("This week's challenge")
+            Spacer(Modifier.weight(1f))
+            Text(if (done) "Done +${ch.bonus}" else "+${ch.bonus} pts",
+                fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                color = if (done) promoteGreen else palette.accent)
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(ch.title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = palette.onSurface)
+        Text(ch.desc, fontSize = 12.sp, color = palette.dim)
+        Spacer(Modifier.height(12.dp))
+        LinearProgressIndicator(
+            progress = { (progress.toFloat() / ch.target).coerceIn(0f, 1f) },
+            modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
+            color = if (done) promoteGreen else palette.accent,
+            trackColor = palette.surface,
+        )
+        Spacer(Modifier.height(6.dp))
+        Text("$progress / ${ch.target}", fontSize = 12.sp, color = palette.dim)
+    }
+}
+
+/** The badge shelf: earned milestones highlighted, the rest shown as goals. */
+@Composable
+private fun BadgesCard(context: android.content.Context) {
+    val palette = LocalRootPalette.current
+    val store = remember { com.rootapp.data.BadgeStore(context) }
+    GlassCard(Modifier.enterUp(70)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SectionLabel("Badges")
+            Spacer(Modifier.weight(1f))
+            Text("${store.earnedCount()} / ${com.rootapp.data.Badges.CATALOG.size}", fontSize = 11.sp, color = palette.dim)
+        }
+        Spacer(Modifier.height(10.dp))
+        com.rootapp.data.Badges.CATALOG.forEachIndexed { i, badge ->
+            if (i > 0) Spacer(Modifier.height(4.dp))
+            val earned = store.isEarned(badge.key)
+            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(30.dp).clip(CircleShape)
+                        .background(if (earned) palette.accentSoft else palette.surface),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Rounded.EmojiEvents,
+                        contentDescription = null,
+                        tint = if (earned) palette.accent else palette.dim,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(badge.title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                        color = if (earned) palette.onSurface else palette.dim)
+                    Text(badge.desc, fontSize = 12.sp, color = palette.dim)
+                }
+                if (earned) Text("Earned", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = palette.accent)
+            }
+        }
+    }
+}
 
 /** Season progress + the cosmetic sky-theme picker (unlock by earning points across the season). */
 @Composable

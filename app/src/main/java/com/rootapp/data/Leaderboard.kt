@@ -26,6 +26,8 @@ object Leaderboard {
         val awarded = LeaderboardStore(context).record(action, LocalDate.now().toEpochDay())
         if (awarded > 0) {
             SeasonStore(context).addPoints(awarded) // unlock cosmetic sky themes over the season
+            Challenges.checkAndClaim(context, scope) // grant weekly-challenge bonus if just completed
+            Achievements.check(context) // award any newly-earned badges
             scope.launch { syncScore(context) }
         }
     }

@@ -64,6 +64,24 @@ class LeaderboardStore(context: Context) {
         return sum
     }
 
+    /** How many times [actionName] was recorded across the week starting at [weekStart]. */
+    fun actionCountThisWeek(actionName: String, weekStart: Long): Int {
+        val map = load()
+        var c = 0
+        for (d in weekStart until weekStart + 7) c += map[d.toString()]?.actions?.get(actionName) ?: 0
+        return c
+    }
+
+    /** Add uncapped bonus EP (e.g. a completed challenge) to [today]'s total. */
+    fun addBonus(points: Int, today: Long) {
+        if (points <= 0) return
+        val map = load()
+        val key = today.toString()
+        val rec = map[key] ?: DayEP()
+        map[key] = rec.copy(ep = rec.ep + points)
+        save(map.filterKeys { (it.toLongOrNull() ?: 0L) >= today - 21 })
+    }
+
     companion object {
         private const val DAYS = "days"
     }
