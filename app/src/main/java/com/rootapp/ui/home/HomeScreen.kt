@@ -35,7 +35,6 @@ import com.rootapp.analytics.Events
 import com.rootapp.analytics.Track
 import com.rootapp.data.LocalStore
 import com.rootapp.data.SupabaseRepository
-import com.rootapp.ui.common.Orb
 import com.rootapp.ui.theme.LocalRootPalette
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -166,29 +165,6 @@ fun HomeScreen(
                 },
             )
         }
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(26.dp),
-            colors = CardDefaults.cardColors(containerColor = palette.surface),
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 22.dp, horizontal = 18.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Orb(size = 72.dp, interactive = true)
-                Spacer(Modifier.height(14.dp))
-                Text(
-                    text = "Good to see you. Want to talk?",
-                    fontSize = 15.sp,
-                    color = palette.onSurface,
-                )
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
 
         Card(
             modifier = Modifier.fillMaxWidth(),
