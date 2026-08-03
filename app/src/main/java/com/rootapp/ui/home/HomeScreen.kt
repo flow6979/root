@@ -25,7 +25,6 @@ import androidx.compose.material.icons.rounded.PhoneIphone
 import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -65,8 +64,7 @@ import kotlin.math.roundToInt
 @Composable
 fun HomeScreen(
     userName: String,
-    onStartReflection: () -> Unit,
-    onTalk: () -> Unit = onStartReflection,
+    onTalk: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalRootPalette.current
@@ -245,9 +243,6 @@ fun HomeScreen(
         }
 
         // ---- talk CTAs ----
-        Button(onClick = onStartReflection, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-            Text("Start a reflection session", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-        }
         Spacer(Modifier.height(24.dp))
     }
 }

@@ -150,7 +150,6 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
                     composable(Tab.HOME.route) {
                         HomeScreen(
                             userName = userName,
-                            onStartReflection = { navController.navigate("reflection") },
                             onTalk = { navController.navigate("voice") },
                         )
                     }
@@ -159,6 +158,11 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
                         com.rootapp.ui.voice.VoiceSessionScreen(
                             userName = userName,
                             onExit = { navController.popBackStack() },
+                            onTypeInstead = {
+                                navController.navigate("reflection") {
+                                    popUpTo("voice") { inclusive = true }
+                                }
+                            },
                         )
                     }
                     composable(Tab.SHIELD.route) { ShieldScreen() }

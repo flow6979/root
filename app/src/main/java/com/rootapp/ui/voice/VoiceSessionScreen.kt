@@ -62,12 +62,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
 
-/** One-on-one voice session: talk, Root replies aloud. No chat panel. */
+/** One-on-one voice session: talk, Root replies aloud. Or tap "type instead" to switch to text. */
 @Composable
-fun VoiceSessionScreen(userName: String, onExit: () -> Unit) {
+fun VoiceSessionScreen(userName: String, onExit: () -> Unit, onTypeInstead: () -> Unit = {}) {
     val palette = LocalRootPalette.current
     val context = LocalContext.current
-    val premium = remember { SettingsStore(context).premium }
     val store = remember { LocalStore(context) }
     val bgScope = rememberCoroutineScope()
     val pastMemory = remember { store.recentMemory().joinToString("; ") }
@@ -135,7 +134,6 @@ fun VoiceSessionScreen(userName: String, onExit: () -> Unit) {
         }
     }
     fun onMic() {
-        if (!premium) { Toast.makeText(context, "Voice sessions are premium", Toast.LENGTH_SHORT).show(); return }
         if (recording) stopAndSend()
         else {
             val has = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
@@ -145,9 +143,9 @@ fun VoiceSessionScreen(userName: String, onExit: () -> Unit) {
 
     val latestReply = state.visible.lastOrNull { it.role == "assistant" }?.content ?: ""
     val status = when {
-        transcribing || state.sending -> "Thinking…"
-        recording -> "Listening…"
-        else -> if (premium) "Tap to talk" else "Voice is premium"
+        transcribing || state.sending -> "Thinking..."
+        recording -> "Listening..."
+        else -> "Tap to talk"
     }
     val onAccent = if (palette.dark) Color(0xFF06101F) else Color.White
     val micBg = if (recording) Color(0xFFD0563F) else palette.accent
@@ -169,15 +167,15 @@ fun VoiceSessionScreen(userName: String, onExit: () -> Unit) {
             Text(status, fontSize = 14.sp, color = palette.dim)
             Spacer(Modifier.height(18.dp))
             Text(
-                latestReply.ifBlank { if (premium) "Say what's on your mind. I'm listening." else "Unlock premium to talk with me." },
+                latestReply.ifBlank { "Say what's on your mind. I'm listening." },
                 fontSize = 17.sp, color = palette.onSurface, textAlign = TextAlign.Center,
                 fontWeight = FontWeight.Medium,
             )
         }
 
-        Box(
-            Modifier.fillMaxWidth().padding(bottom = 48.dp).align(Alignment.BottomCenter),
-            contentAlignment = Alignment.Center,
+        Column(
+            Modifier.fillMaxWidth().padding(bottom = 40.dp).align(Alignment.BottomCenter),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Box(
                 Modifier.size(78.dp).clip(CircleShape).background(micBg)
@@ -192,6 +190,10 @@ fun VoiceSessionScreen(userName: String, onExit: () -> Unit) {
                         contentDescription = "Talk", tint = onAccent, modifier = Modifier.size(34.dp),
                     )
                 }
+            }
+            Spacer(Modifier.height(16.dp))
+            androidx.compose.material3.TextButton(onClick = onTypeInstead) {
+                Text("Prefer to type?", color = palette.accent, fontSize = 13.sp)
             }
         }
     }
