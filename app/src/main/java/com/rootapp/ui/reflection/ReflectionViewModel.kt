@@ -31,6 +31,9 @@ class ReflectionViewModel(
     private val onTakeaway: (Insights.Takeaway) -> Unit = {},
     /** Returns memory relevant to a given user message, injected just before the model turn (RAG). */
     private val retrieve: (String) -> String = { "" },
+    /** The evolving user profile to seed the persona, and a callback to persist an updated one. */
+    private val profile: String = "",
+    private val onProfile: (String) -> Unit = {},
 ) : ViewModel() {
 
     data class UiState(
@@ -41,7 +44,7 @@ class ReflectionViewModel(
 
     // Full transcript incl. the hidden system prompt, sent to the model each turn.
     private val transcript = mutableListOf(
-        ChatMessage.system(Prompts.friendSystemPrompt(userName, pastMemory.ifBlank { null }, tone)),
+        ChatMessage.system(Prompts.friendSystemPrompt(userName, pastMemory.ifBlank { null }, tone, profile.ifBlank { null })),
         ChatMessage.assistant(Prompts.opener(userName, tone)),
     )
 
@@ -111,6 +114,9 @@ class ReflectionViewModel(
             if (takeaway.concern.isNotBlank() || takeaway.intention.isNotBlank()) {
                 runCatching { onTakeaway(takeaway) }
             }
+            // Fold this session into the evolving user profile (best-effort).
+            val updated = runCatching { com.rootapp.ai.ProfileUpdater.update(llm, profile, convo) }.getOrNull()
+            if (!updated.isNullOrBlank() && updated != profile) runCatching { onProfile(updated) }
         }
     }
 

@@ -76,6 +76,8 @@ fun VoiceSessionScreen(userName: String, onExit: () -> Unit, onTypeInstead: () -
             AppModule.llmClient, userName, pastMemory, tone,
             onUserMessage = { store.remember(it) },
             retrieve = { com.rootapp.data.Memory.relevant(context, it) },
+            profile = store.userProfile(),
+            onProfile = { store.setUserProfile(it) },
         ),
     )
     val state by vm.state.collectAsStateWithLifecycle()

@@ -74,10 +74,12 @@ class ReflectionVMFactory(
     private val onUserMessage: (String) -> Unit,
     private val onTakeaway: (com.rootapp.data.Insights.Takeaway) -> Unit = {},
     private val retrieve: (String) -> String = { "" },
+    private val profile: String = "",
+    private val onProfile: (String) -> Unit = {},
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-        ReflectionViewModel(llm, userName, pastMemory, tone, onUserMessage, onTakeaway, retrieve) as T
+        ReflectionViewModel(llm, userName, pastMemory, tone, onUserMessage, onTakeaway, retrieve, profile, onProfile) as T
 }
 
 @Composable
@@ -115,6 +117,8 @@ fun ReflectionScreen(
             // Persist the distilled session takeaway so Home can nudge on it next time.
             onTakeaway = { store.addTakeaway(it.concern, it.intention, System.currentTimeMillis()) },
             retrieve = { com.rootapp.data.Memory.relevant(context, it) },
+            profile = store.userProfile(),
+            onProfile = { store.setUserProfile(it) },
         ),
     )
 

@@ -84,6 +84,20 @@ class LocalStore(context: Context) {
     /** Most recent stored takeaway, or null when none exist yet. */
     fun latestTakeaway(): SessionTakeaway? = takeaways().lastOrNull()
 
+    fun removeTakeaway(timestamp: Long) {
+        val list = takeaways().filterNot { it.timestamp == timestamp }
+        prefs.edit().putString(TAKEAWAYS, encode(list, SessionTakeaway.serializer())).apply()
+    }
+
+    // ---- evolving user profile (a short, LLM-maintained model of the person) ----
+    fun userProfile(): String = prefs.getString(PROFILE, "") ?: ""
+    fun setUserProfile(text: String) = prefs.edit().putString(PROFILE, text.trim()).apply()
+
+    /** Wipe everything the friend "remembers": profile, takeaways, and remembered messages. */
+    fun clearMemory() {
+        prefs.edit().remove(PROFILE).remove(TAKEAWAYS).remove(MEMORY).apply()
+    }
+
     // ---- interrupt stats ----
     fun incInterruptShown() = prefs.edit().putInt(I_SHOWN, prefs.getInt(I_SHOWN, 0) + 1).apply()
     fun incInterruptPaused() = prefs.edit().putInt(I_PAUSED, prefs.getInt(I_PAUSED, 0) + 1).apply()
@@ -107,5 +121,6 @@ class LocalStore(context: Context) {
         private const val I_PAUSED = "interrupt_paused"
         private const val MEMORY = "memory_msgs"
         private const val TAKEAWAYS = "session_takeaways"
+        private const val PROFILE = "user_profile"
     }
 }

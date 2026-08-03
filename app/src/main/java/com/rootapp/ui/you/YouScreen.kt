@@ -45,6 +45,7 @@ fun YouScreen(
     personality: String,
     onPersonalityChange: (String) -> Unit,
     onLogout: () -> Unit = {},
+    onOpenMemory: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalRootPalette.current
@@ -177,6 +178,20 @@ fun YouScreen(
                     benefit = "Honest and direct. Names the excuse, asks for one real commitment, keeps you accountable.",
                     selected = personality == "Tough-love",
                 ) { onPersonalityChange("Tough-love") }
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+
+        // Memory
+        Section("MEMORY")
+        Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().clickable { onOpenMemory() },
+            colors = CardDefaults.cardColors(containerColor = palette.surface)) {
+            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("What Root remembers", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
+                    Text("See the profile and takeaways Root keeps, or clear them.", fontSize = 12.sp, color = palette.dim)
+                }
+                Text("›", fontSize = 22.sp, color = palette.accent)
             }
         }
         Spacer(Modifier.height(16.dp))

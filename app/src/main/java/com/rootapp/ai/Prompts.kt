@@ -9,8 +9,9 @@ package com.rootapp.ai
  */
 object Prompts {
 
-    fun friendSystemPrompt(userName: String, memory: String? = null, tone: String = "Gentle"): String {
+    fun friendSystemPrompt(userName: String, memory: String? = null, tone: String = "Gentle", profile: String? = null): String {
         val name = userName.ifBlank { "friend" }
+        val profileBlock = if (!profile.isNullOrBlank()) "\n\nWhat you know about them (profile):\n$profile" else ""
         val memoryBlock = if (!memory.isNullOrBlank()) {
             "\n\nWhat you remember about them:\n$memory"
         } else ""
@@ -49,7 +50,7 @@ object Prompts {
             - Never shame, guilt-trip, or nag. No walls of text.
             - No medical or clinical claims; if they mention self-harm or crisis,
               gently encourage reaching out to a trusted person or a local help line.
-            - Do not pretend to have data you were not given.$memoryBlock
+            - Do not pretend to have data you were not given.$profileBlock$memoryBlock
         """.trimIndent()
     }
 
