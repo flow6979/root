@@ -124,9 +124,9 @@ fun LeagueScreen(modifier: Modifier = Modifier) {
                             if (name.length < 3) { error = "At least 3 characters."; return@Button }
                             saving = true; error = null
                             scope.launch {
-                                val ok = repo.setUsername(name)
+                                val err = repo.setUsername(name)
                                 saving = false
-                                if (ok) { username = name; reload() } else error = "That name is taken or couldn't be saved."
+                                if (err == null) { username = name; reload() } else error = err
                             }
                         },
                         enabled = !saving,

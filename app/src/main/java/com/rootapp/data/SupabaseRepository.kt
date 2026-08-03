@@ -84,10 +84,10 @@ class SupabaseRepository(context: Context) {
 
     // ---- leaderboard (Phase A) ----
 
-    /** Create or update the caller's public username. Returns true on success. */
-    suspend fun setUsername(name: String): Boolean = withContext(Dispatchers.IO) {
-        val token = ensureSession() ?: return@withContext false
-        val uid = userId ?: return@withContext false
+    /** Create or update the caller's public username. Returns null on success, else a user-facing error. */
+    suspend fun setUsername(name: String): String? = withContext(Dispatchers.IO) {
+        val token = ensureSession() ?: return@withContext "Couldn't reach the server. Check your connection."
+        val uid = userId ?: return@withContext "Please sign in again."
         val body = buildJsonObject { put("user_id", uid); put("username", name.trim()) }
         val req = Request.Builder()
             .url("$baseUrl/rest/v1/profiles")
@@ -98,10 +98,18 @@ class SupabaseRepository(context: Context) {
             .build()
         runCatching {
             http.newCall(req).execute().use { r ->
-                if (!r.isSuccessful) Log.w("Supabase", "setUsername -> ${r.code}: ${r.body?.string()?.take(160)}")
-                r.isSuccessful
+                val bodyText = r.body?.string().orEmpty()
+                if (r.isSuccessful) return@use null
+                Log.w("Supabase", "setUsername -> ${r.code}: ${bodyText.take(200)}")
+                when {
+                    r.code == 409 || bodyText.contains("duplicate", true) -> "That name is taken. Try another."
+                    r.code == 404 || bodyText.contains("does not exist", true) ->
+                        "The leaderboard isn't set up on the server yet."
+                    r.code == 401 || r.code == 403 -> "Please sign in again."
+                    else -> "Couldn't save that name (error ${r.code})."
+                }
             }
-        }.getOrElse { Log.w("Supabase", "setUsername failed: ${it.message}"); false }
+        }.getOrElse { Log.w("Supabase", "setUsername failed: ${it.message}"); "Network error. Try again." }
     }
 
     /** The caller's chosen username, or null if none set / offline. */
