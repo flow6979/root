@@ -118,6 +118,38 @@ class SupabaseRepository(context: Context) {
         toResult(authCallResult(req, "sign-up"), "email")
     }
 
+    /**
+     * Verify a signup with the 6-digit code emailed to the user (email OTP). On success this
+     * returns a real session, so the user is logged straight in - no web link, no redirect. The
+     * Supabase "Confirm signup" email template must include the code token ({{ .Token }}).
+     */
+    suspend fun verifyEmailOtp(emailAddr: String, token: String): AuthResult = withContext(Dispatchers.IO) {
+        if (!configured) return@withContext AuthResult.Error("Not configured")
+        val body = buildJsonObject {
+            put("type", "signup")
+            put("email", emailAddr.trim())
+            put("token", token.trim())
+        }
+        val req = Request.Builder()
+            .url("$baseUrl/auth/v1/verify")
+            .addHeader("apikey", anonKey)
+            .post(json.encodeToString(JsonObject.serializer(), body).toRequestBody(jsonMedia))
+            .build()
+        toResult(authCallResult(req, "verify-otp"), "email")
+    }
+
+    /** Re-send the signup confirmation code. Returns true if the request was accepted. */
+    suspend fun resendSignupOtp(emailAddr: String): Boolean = withContext(Dispatchers.IO) {
+        if (!configured) return@withContext false
+        val body = buildJsonObject { put("type", "signup"); put("email", emailAddr.trim()) }
+        val req = Request.Builder()
+            .url("$baseUrl/auth/v1/resend")
+            .addHeader("apikey", anonKey)
+            .post(json.encodeToString(JsonObject.serializer(), body).toRequestBody(jsonMedia))
+            .build()
+        runCatching { http.newCall(req).execute().use { it.isSuccessful } }.getOrDefault(false)
+    }
+
     suspend fun guestSignIn(): Boolean = withContext(Dispatchers.IO) {
         val t = signInAnonymously() ?: return@withContext false
         store(t, "anon"); true

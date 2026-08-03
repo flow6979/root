@@ -64,7 +64,8 @@ fun AuthScreen(onAuthed: () -> Unit) {
     var confirm by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
-    var sentTo by remember { mutableStateOf<String?>(null) } // set when a confirmation email is sent
+    var sentTo by remember { mutableStateOf<String?>(null) } // set when a confirmation code is sent
+    var code by remember { mutableStateOf("") } // the 6-digit email OTP the user types back in
 
     Box(Modifier.fillMaxSize()) {
         SkyBackground(hour = hour, minimalist = false, modifier = Modifier.fillMaxSize())
@@ -77,22 +78,64 @@ fun AuthScreen(onAuthed: () -> Unit) {
 
             val pending = sentTo
             if (pending != null) {
-                // ---- confirmation-sent state ----
-                Text("✉️", fontSize = 40.sp)
-                Spacer(Modifier.height(10.dp))
+                // ---- enter-the-code state (email OTP, all in-app) ----
                 Text("Check your inbox", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = palette.onSurface)
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "We sent a confirmation link to $pending. Tap it, then come back and log in.",
+                    "We emailed a 6-digit code to $pending. Enter it below to confirm your email.",
                     fontSize = 13.sp, color = palette.dim, textAlign = TextAlign.Center,
                 )
-                Spacer(Modifier.height(20.dp))
-                Button(
-                    onClick = { sentTo = null; isSignUp = false; password = ""; confirm = ""; message = null },
+                Spacer(Modifier.height(18.dp))
+                OutlinedTextField(
+                    value = code,
+                    onValueChange = { new -> code = new.filter { it.isDigit() }.take(6); message = null },
+                    label = { Text("6-digit code") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("I've confirmed - log in", fontWeight = FontWeight.SemiBold) }
-                TextButton(onClick = { sentTo = null; message = null }) {
+                )
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        if (code.length < 6) { message = "Enter the 6-digit code from your email."; return@Button }
+                        loading = true; message = null
+                        scope.launch {
+                            val r = repo.verifyEmailOtp(pending, code)
+                            loading = false
+                            when (r) {
+                                is SupabaseRepository.AuthResult.Success -> {
+                                    val resolved = name.trim().ifBlank { repo.displayName ?: "" }
+                                    if (resolved.isNotBlank()) settings.userName = resolved
+                                    onAuthed()
+                                }
+                                is SupabaseRepository.AuthResult.Error -> message = r.message
+                                is SupabaseRepository.AuthResult.NeedsConfirmation ->
+                                    message = "That code didn't work. Try again or resend."
+                            }
+                        }
+                    },
+                    enabled = !loading,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Confirm and log in", fontWeight = FontWeight.SemiBold) }
+                Spacer(Modifier.height(6.dp))
+                TextButton(
+                    onClick = {
+                        loading = true; message = null
+                        scope.launch {
+                            val ok = repo.resendSignupOtp(pending); loading = false
+                            message = if (ok) "Sent a new code to $pending." else "Couldn't resend. Check your connection."
+                        }
+                    },
+                    enabled = !loading,
+                ) { Text("Resend code", color = palette.accent) }
+                TextButton(onClick = { sentTo = null; code = ""; message = null }) {
                     Text("Use a different email", color = palette.accent)
+                }
+                Spacer(Modifier.height(10.dp))
+                if (loading) CircularProgressIndicator(color = palette.accent)
+                message?.let {
+                    Text(it, color = palette.accent, fontSize = 13.sp, textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth())
                 }
                 return@Column
             }
