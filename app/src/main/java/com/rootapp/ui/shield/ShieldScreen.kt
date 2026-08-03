@@ -119,6 +119,17 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
     var nudges by remember { mutableStateOf(settings.overuseNudges) }
     var notifGranted by remember(permRefresh) { mutableStateOf(Nudges.canPost(context)) }
     val needsNotif = android.os.Build.VERSION.SDK_INT >= 33 && !notifGranted
+    // What the adaptive nudger has learned so far (shown only once there's enough signal).
+    val adaptiveInsight = remember(permRefresh) {
+        val store = com.rootapp.shield.NudgeStore(context)
+        val peak = com.rootapp.shield.AdaptiveNudge.peakHour(store.riskByHour())
+        if (peak == null || store.shown() < 3) {
+            null
+        } else {
+            "Root has learned your toughest time is around ${com.rootapp.shield.WindDown.bedtimeLabel(peak)} " +
+                "and now nudges earlier then, easing off when you're doing fine."
+        }
+    }
     var windDown by remember { mutableStateOf(settings.windDownEnabled) }
     var bedtime by remember { mutableIntStateOf(settings.bedtimeHour.let { if (it < 12) it + 24 else it }.coerceIn(20, 25)) }
 
@@ -336,6 +347,10 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
                     nudges = it; settings.overuseNudges = it
                     if (it && needsNotif) notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 })
+            }
+            if (nudges && adaptiveInsight != null) {
+                Spacer(Modifier.height(10.dp))
+                Text(adaptiveInsight, fontSize = 12.sp, color = palette.accent)
             }
             if (nudges && needsNotif) {
                 Spacer(Modifier.height(12.dp))

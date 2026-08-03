@@ -54,6 +54,10 @@ class UsageWatcherService : Service() {
     private var lastNudgeAt = 0L
     private var nextNudgeMin = FIRST_NUDGE_MIN
 
+    // Adaptive-nudge outcome tracking: did they leave the app soon after a nudge (heeded)?
+    private var pendingHeedApp: String? = null
+    private var pendingHeedDeadline = 0L
+
     // Daily screen-time budget nudges (checked at most once a minute).
     private var lastBudgetCheck = 0L
     private var budgetDay = -1
@@ -113,6 +117,7 @@ class UsageWatcherService : Service() {
                 }
             }
             handleSustainedUse(current, monitoredSet, now)
+            resolveHeed(current, now)
             maybeBudgetNudge(now)
             maybeMoveNudge(now)
 
@@ -126,7 +131,9 @@ class UsageWatcherService : Service() {
         if (nudgeApp != current) {
             nudgeApp = current
             nudgeSessionStart = now
-            nextNudgeMin = FIRST_NUDGE_MIN
+            // Just-in-time: nudge earlier in this person's historically risky hours, later in calm ones.
+            val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+            nextNudgeMin = AdaptiveNudge.firstNudgeMin(hour, NudgeStore(this).riskByHour(), base = FIRST_NUDGE_MIN)
             return
         }
         val sessionMin = ((now - nudgeSessionStart) / 60000L).toInt()
@@ -134,8 +141,25 @@ class UsageWatcherService : Service() {
         if (now - lastNudgeAt < NUDGE_COOLDOWN_MS) return
         if (!SettingsStore(this).overuseNudges || !Nudges.canPost(this)) return
         lastNudgeAt = now
-        nextNudgeMin = sessionMin + REPEAT_NUDGE_MIN
+        val store = NudgeStore(this)
+        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        store.recordNudge(hour) // learn: this hour is a risky one for them
+        pendingHeedApp = current // watch whether they leave the app soon (nudge worked)
+        pendingHeedDeadline = now + HEED_WINDOW_MS
+        // Anti-nag: widen the gap if nudges are being ignored, tighten if they're working.
+        nextNudgeMin = sessionMin + AdaptiveNudge.repeatNudgeMin(store.heeded(), store.shown(), base = REPEAT_NUDGE_MIN)
         fireNudge(current, sessionMin)
+    }
+
+    /** After a nudge, if they leave the app within the window it worked; otherwise it was ignored. */
+    private fun resolveHeed(current: String?, now: Long) {
+        val app = pendingHeedApp ?: return
+        if (current != app) {
+            NudgeStore(this).recordHeeded()
+            pendingHeedApp = null
+        } else if (now >= pendingHeedDeadline) {
+            pendingHeedApp = null
+        }
     }
 
     private fun fireNudge(pkg: String, sessionMin: Int) {
@@ -277,6 +301,7 @@ class UsageWatcherService : Service() {
         private const val FIRST_NUDGE_MIN = 15
         private const val REPEAT_NUDGE_MIN = 20
         private const val NUDGE_COOLDOWN_MS = 10 * 60 * 1000L
+        private const val HEED_WINDOW_MS = 3 * 60 * 1000L
         const val ACTION_STOP = "com.rootapp.shield.STOP"
 
         private val _running = MutableStateFlow(false)
