@@ -18,6 +18,18 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
+/** My position on the weekly leaderboard. */
+data class LeaderStanding(
+    val rank: Int,
+    val players: Int,
+    val effortPercentile: Int,
+    val points: Int,
+    val growthPercentile: Int,
+)
+
+/** One row on the weekly leaderboard. */
+data class LeaderRow(val username: String, val points: Int, val rank: Int, val isMe: Boolean)
+
 /**
  * Lightweight Supabase client over OkHttp (no extra SDK). Handles anonymous auth
  * (persisted refresh token so the same anon user sticks) and RLS-scoped inserts.
@@ -59,6 +71,108 @@ class SupabaseRepository(context: Context) {
 
     suspend fun pushReflection(messageCount: Int) =
         insert("reflections", buildJsonObject { put("message_count", messageCount) })
+
+    // ---- leaderboard (Phase A) ----
+
+    /** Create or update the caller's public username. Returns true on success. */
+    suspend fun setUsername(name: String): Boolean = withContext(Dispatchers.IO) {
+        val token = ensureSession() ?: return@withContext false
+        val uid = userId ?: return@withContext false
+        val body = buildJsonObject { put("user_id", uid); put("username", name.trim()) }
+        val req = Request.Builder()
+            .url("$baseUrl/rest/v1/profiles")
+            .addHeader("apikey", anonKey)
+            .addHeader("Authorization", "Bearer $token")
+            .addHeader("Prefer", "resolution=merge-duplicates,return=minimal")
+            .post(json.encodeToString(JsonObject.serializer(), body).toRequestBody(jsonMedia))
+            .build()
+        runCatching {
+            http.newCall(req).execute().use { r ->
+                if (!r.isSuccessful) Log.w("Supabase", "setUsername -> ${r.code}: ${r.body?.string()?.take(160)}")
+                r.isSuccessful
+            }
+        }.getOrElse { Log.w("Supabase", "setUsername failed: ${it.message}"); false }
+    }
+
+    /** The caller's chosen username, or null if none set / offline. */
+    suspend fun getUsername(): String? = withContext(Dispatchers.IO) {
+        val token = ensureSession() ?: return@withContext null
+        val uid = userId ?: return@withContext null
+        val text = authedGet("rest/v1/profiles?select=username&user_id=eq.$uid", token) ?: return@withContext null
+        runCatching {
+            json.parseToJsonElement(text).jsonArray.firstOrNull()?.jsonObject
+                ?.get("username")?.jsonPrimitive?.content
+        }.getOrNull()
+    }
+
+    /** Submit this week's effort total + wellbeing score. [week] is the Monday date (yyyy-MM-dd). */
+    suspend fun submitScore(week: String, effort: Int, wellbeing: Int?): Boolean = withContext(Dispatchers.IO) {
+        val body = buildJsonObject {
+            put("p_week", week)
+            put("p_effort", effort)
+            if (wellbeing == null) put("p_wellbeing", kotlinx.serialization.json.JsonNull) else put("p_wellbeing", wellbeing)
+        }
+        rpc("submit_score", body) != null
+    }
+
+    /** My rank + effort/growth percentiles for the week, or null if I have no score yet. */
+    suspend fun myStanding(week: String): LeaderStanding? = withContext(Dispatchers.IO) {
+        val body = buildJsonObject { put("p_week", week) }
+        val text = rpc("get_my_standing", body) ?: return@withContext null
+        runCatching {
+            val o = json.parseToJsonElement(text).jsonArray.firstOrNull()?.jsonObject ?: return@runCatching null
+            LeaderStanding(
+                rank = o["my_rank"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                players = o["players"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                effortPercentile = o["effort_percentile"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                points = o["my_points"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                growthPercentile = o["growth_percentile"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+            )
+        }.getOrNull()
+    }
+
+    /** The week's top players (username, points, rank, and whether it's me). */
+    suspend fun leaderboard(week: String, limit: Int = 50): List<LeaderRow> = withContext(Dispatchers.IO) {
+        val body = buildJsonObject { put("p_week", week); put("p_limit", limit) }
+        val text = rpc("get_leaderboard", body) ?: return@withContext emptyList()
+        runCatching {
+            json.parseToJsonElement(text).jsonArray.map { el ->
+                val o = el.jsonObject
+                LeaderRow(
+                    username = o["username"]?.jsonPrimitive?.content ?: "anon",
+                    points = o["effort_points"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                    rank = o["rnk"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                    isMe = o["is_me"]?.jsonPrimitive?.content?.toBoolean() ?: false,
+                )
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    private suspend fun rpc(fn: String, body: JsonObject): String? {
+        val token = ensureSession() ?: return null
+        val req = Request.Builder()
+            .url("$baseUrl/rest/v1/rpc/$fn")
+            .addHeader("apikey", anonKey)
+            .addHeader("Authorization", "Bearer $token")
+            .post(json.encodeToString(JsonObject.serializer(), body).toRequestBody(jsonMedia))
+            .build()
+        return runCatching {
+            http.newCall(req).execute().use { r ->
+                val t = r.body?.string()
+                if (!r.isSuccessful) { Log.w("Supabase", "rpc $fn -> ${r.code}: ${t?.take(160)}"); null } else t
+            }
+        }.getOrElse { Log.w("Supabase", "rpc $fn failed: ${it.message}"); null }
+    }
+
+    private fun authedGet(path: String, token: String): String? = runCatching {
+        val req = Request.Builder()
+            .url("$baseUrl/$path")
+            .addHeader("apikey", anonKey)
+            .addHeader("Authorization", "Bearer $token")
+            .get()
+            .build()
+        http.newCall(req).execute().use { r -> if (r.isSuccessful) r.body?.string() else null }
+    }.getOrNull()
 
     private suspend fun insert(table: String, body: JsonObject): Boolean = withContext(Dispatchers.IO) {
         val token = ensureSession() ?: return@withContext false

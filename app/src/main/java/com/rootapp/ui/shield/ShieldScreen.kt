@@ -155,6 +155,7 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
     fun startFocus(min: Int) {
         FocusSession.start(min)
         if (ready) UsageWatcherService.start(context) // ensure the blocker is running
+        com.rootapp.data.Leaderboard.record(context, scope, com.rootapp.data.EPAction.FOCUS)
     }
     val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         notifGranted = Nudges.canPost(context)

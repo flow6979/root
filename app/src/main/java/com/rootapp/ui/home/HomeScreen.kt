@@ -26,6 +26,7 @@ import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DirectionsWalk
+import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.PhoneIphone
@@ -74,6 +75,7 @@ fun HomeScreen(
     userName: String,
     onTalk: () -> Unit,
     onOpenWeekly: () -> Unit = {},
+    onOpenLeague: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalRootPalette.current
@@ -152,6 +154,15 @@ fun HomeScreen(
     }
     val wellbeing = wellbeingResult.overall
 
+    // Weekly league standing (loaded live; card only appears once we have a percentile).
+    var leagueStanding by remember { mutableStateOf<com.rootapp.data.LeaderStanding?>(null) }
+    LaunchedEffect(Unit) {
+        if (supabase.configured) {
+            com.rootapp.data.Leaderboard.syncScore(context)
+            leagueStanding = supabase.myStanding(com.rootapp.data.Leaderboard.weekStartString())
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -229,6 +240,31 @@ fun HomeScreen(
                 },
             )
         }
+
+        // ---- weekly league (gamified) ----
+        val ls = leagueStanding
+        GlassCard(Modifier.enterUp(20).clickable { onOpenLeague() }) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconTile(Icons.Rounded.EmojiEvents)
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    SectionLabel("Weekly league")
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        if (ls != null) "Top ${(100 - ls.effortPercentile).coerceIn(0, 100)}% this week"
+                        else "Join the weekly league",
+                        fontSize = 18.sp, fontWeight = FontWeight.Bold, color = palette.onSurface,
+                    )
+                    Text(
+                        if (ls != null) "#${ls.rank} of ${ls.players} - ${ls.points} points"
+                        else "Earn points for the healthy things you already do",
+                        fontSize = 12.sp, color = palette.dim,
+                    )
+                }
+                Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = palette.dim)
+            }
+        }
+        Spacer(Modifier.height(14.dp))
 
         // ---- connect Health Connect (only when installed but not yet granted) ----
         if (hcAvailable && !hcGranted) {
@@ -326,6 +362,7 @@ fun HomeScreen(
                     selectedMood = i
                     Track.event(Events.MOOD_LOGGED)
                     scope.launch { supabase.pushMood(today, i) }
+                    com.rootapp.data.Leaderboard.record(context, scope, com.rootapp.data.EPAction.MOOD)
                 },
             )
         }

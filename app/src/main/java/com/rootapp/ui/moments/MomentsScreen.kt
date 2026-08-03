@@ -131,6 +131,7 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
         store.addFood(meal.food, meal.healthy, System.currentTimeMillis())
         scope.launch { supabase.pushFood(meal.food, meal.healthy) }
         Track.event(Events.FOOD_LOGGED, mapOf("healthy" to meal.healthy, "source" to "voice"))
+        com.rootapp.data.Leaderboard.record(context, scope, com.rootapp.data.EPAction.MEAL)
     }
     fun logSpoken(text: String) {
         // Deterministic split so "pizza and pasta" logs two entries even without the LLM.
@@ -384,6 +385,7 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
                 foods = store.foods().reversed()
                 Track.event(Events.FOOD_LOGGED, mapOf("healthy" to healthy))
                 scope.launch { supabase.pushFood(label.ifBlank { "Meal" }, healthy) }
+                com.rootapp.data.Leaderboard.record(context, scope, com.rootapp.data.EPAction.MEAL)
                 showDialog = false
             },
         )

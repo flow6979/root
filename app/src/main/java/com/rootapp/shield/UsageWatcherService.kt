@@ -156,6 +156,7 @@ class UsageWatcherService : Service() {
         val app = pendingHeedApp ?: return
         if (current != app) {
             NudgeStore(this).recordHeeded()
+            com.rootapp.data.Leaderboard.record(this, scope, com.rootapp.data.EPAction.NUDGE_HEEDED)
             pendingHeedApp = null
         } else if (now >= pendingHeedDeadline) {
             pendingHeedApp = null

@@ -107,7 +107,11 @@ fun ReflectionScreen(
             onUserMessage = {
                 store.remember(it)
                 msgCount++
-                if (!sessionLogged) { sessionLogged = true; bgScope.launch { supabase.pushReflection(msgCount) } }
+                if (!sessionLogged) {
+                    sessionLogged = true
+                    bgScope.launch { supabase.pushReflection(msgCount) }
+                    com.rootapp.data.Leaderboard.record(context, bgScope, com.rootapp.data.EPAction.REFLECTION)
+                }
                 // Auto-log food mentioned during the session into Moments.
                 bgScope.launch {
                     val meals = com.rootapp.ai.FoodExtractor.extract(AppModule.llmClient, it)
