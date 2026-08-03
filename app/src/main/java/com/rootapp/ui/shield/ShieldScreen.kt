@@ -4,28 +4,36 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.NightsStay
 import androidx.compose.material.icons.rounded.NotificationsActive
-import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.Shield
-import androidx.compose.material.icons.rounded.SmartDisplay
 import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,11 +47,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -110,8 +118,8 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
     }
 
     val monitored = remember { MonitoredApps(context) }
-    var igOn by remember { mutableStateOf(monitored.isMonitored("com.instagram.android")) }
-    var ytOn by remember { mutableStateOf(monitored.isMonitored("com.google.android.youtube")) }
+    var monitoredPkgs by remember { mutableStateOf(monitored.get()) }
+    var showAppPicker by remember { mutableStateOf(false) }
 
     // Overuse-nudge state.
     val settings = remember { SettingsStore(context) }
@@ -408,27 +416,124 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
         SectionLabel("Apps to pause")
         Spacer(Modifier.height(8.dp))
         GlassCard(Modifier.enterUp(200)) {
-            Text("The apps that pull you in the most.", fontSize = 12.sp, color = palette.dim)
+            Text("The apps that pull you in the most. Add any app on your phone.", fontSize = 12.sp, color = palette.dim)
             Spacer(Modifier.height(14.dp))
-            AppToggle("Instagram", "Reels, endless feed", Icons.Rounded.PhotoCamera, igOn) { igOn = it; monitored.toggle("com.instagram.android", it) }
+            if (monitoredPkgs.isEmpty()) {
+                Text("No apps yet. Add one below and Root will gently pause it.", fontSize = 13.sp, color = palette.dim)
+            } else {
+                monitoredPkgs.sortedBy { UsageStatsReader.labelOf(context, it).lowercase() }.forEachIndexed { i, pkg ->
+                    if (i > 0) Spacer(Modifier.height(16.dp))
+                    MonitoredAppRow(
+                        context = context,
+                        pkg = pkg,
+                        onRemove = {
+                            monitored.toggle(pkg, false)
+                            monitoredPkgs = monitored.get()
+                        },
+                    )
+                }
+            }
             Spacer(Modifier.height(16.dp))
-            AppToggle("YouTube", "Shorts, autoplay", Icons.Rounded.SmartDisplay, ytOn) { ytOn = it; monitored.toggle("com.google.android.youtube", it) }
+            OutlinedButton(onClick = { showAppPicker = true }, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Add an app", color = palette.accent)
+            }
         }
         Spacer(Modifier.height(24.dp))
     }
+
+    if (showAppPicker) {
+        AppPickerDialog(
+            context = context,
+            alreadyMonitored = monitoredPkgs,
+            onDismiss = { showAppPicker = false },
+            onPick = { pkg ->
+                monitored.toggle(pkg, true)
+                monitoredPkgs = monitored.get()
+                showAppPicker = false
+            },
+        )
+    }
 }
 
+/** A monitored app: real icon + name, with a Remove action. */
 @Composable
-private fun AppToggle(name: String, detail: String, icon: ImageVector, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun MonitoredAppRow(context: android.content.Context, pkg: String, onRemove: () -> Unit) {
     val palette = LocalRootPalette.current
+    val label = remember(pkg) { UsageStatsReader.labelOf(context, pkg) }
+    val icon = remember(pkg) { com.rootapp.shield.InstalledApps.icon(context, pkg) }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        IconTile(icon)
+        AppIcon(icon)
         Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
-            Text(detail, fontSize = 12.sp, color = palette.dim)
-        }
-        Switch(checked = checked, onCheckedChange = onChange)
+        Text(label, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface, modifier = Modifier.weight(1f))
+        TextButton(onClick = onRemove) { Text("Remove", color = palette.accent) }
+    }
+}
+
+/** A searchable list of installed apps to add to the pause set. */
+@Composable
+private fun AppPickerDialog(
+    context: android.content.Context,
+    alreadyMonitored: Set<String>,
+    onDismiss: () -> Unit,
+    onPick: (String) -> Unit,
+) {
+    val palette = LocalRootPalette.current
+    val all = remember { com.rootapp.shield.InstalledApps.launchable(context) }
+    var query by remember { mutableStateOf("") }
+    val filtered = remember(query, alreadyMonitored) {
+        all.filter { it.pkg !in alreadyMonitored && it.label.contains(query.trim(), ignoreCase = true) }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        title = { Text("Add an app to pause") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    singleLine = true,
+                    label = { Text("Search apps") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(10.dp))
+                if (filtered.isEmpty()) {
+                    Text("No apps match.", fontSize = 13.sp, color = palette.dim)
+                } else {
+                    LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
+                        items(filtered, key = { it.pkg }) { app ->
+                            val icon = remember(app.pkg) { com.rootapp.shield.InstalledApps.icon(context, app.pkg) }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth().clickable { onPick(app.pkg) }.padding(vertical = 10.dp),
+                            ) {
+                                AppIcon(icon)
+                                Spacer(Modifier.width(14.dp))
+                                Text(app.label, fontSize = 15.sp, color = palette.onSurface, modifier = Modifier.weight(1f))
+                                Icon(Icons.Rounded.Add, contentDescription = "Add", tint = palette.accent, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        },
+    )
+}
+
+/** Real app icon when we have it, else a neutral tile so the row still reads cleanly. */
+@Composable
+private fun AppIcon(icon: androidx.compose.ui.graphics.ImageBitmap?) {
+    if (icon != null) {
+        androidx.compose.foundation.Image(
+            bitmap = icon,
+            contentDescription = null,
+            modifier = Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)),
+        )
+    } else {
+        IconTile(Icons.Rounded.Apps)
     }
 }
 
