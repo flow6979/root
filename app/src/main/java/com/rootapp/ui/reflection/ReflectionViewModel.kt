@@ -29,6 +29,8 @@ class ReflectionViewModel(
      * implementations must not throw. Default no-op keeps the ViewModel usable in tests.
      */
     private val onTakeaway: (Insights.Takeaway) -> Unit = {},
+    /** Returns memory relevant to a given user message, injected just before the model turn (RAG). */
+    private val retrieve: (String) -> String = { "" },
 ) : ViewModel() {
 
     data class UiState(
@@ -61,7 +63,7 @@ class ReflectionViewModel(
 
         viewModelScope.launch {
             try {
-                val reply = llm.complete(transcript.toList())
+                val reply = llm.complete(withRelevantMemory(text))
                 transcript += ChatMessage.assistant(reply)
                 _state.value = _state.value.copy(visible = visibleFrom(transcript), sending = false)
             } catch (t: Throwable) {
@@ -71,6 +73,14 @@ class ReflectionViewModel(
                 )
             }
         }
+    }
+
+    /** Transcript to send, with memory relevant to [latestUserText] injected before that turn. */
+    private fun withRelevantMemory(latestUserText: String): List<ChatMessage> {
+        val mem = runCatching { retrieve(latestUserText) }.getOrDefault("")
+        val list = transcript.toList()
+        if (mem.isBlank()) return list
+        return list.dropLast(1) + ChatMessage.system("Relevant things you remember about them:\n$mem") + list.last()
     }
 
     fun clearError() {

@@ -69,10 +69,14 @@ fun VoiceSessionScreen(userName: String, onExit: () -> Unit, onTypeInstead: () -
     val context = LocalContext.current
     val store = remember { LocalStore(context) }
     val bgScope = rememberCoroutineScope()
-    val pastMemory = remember { store.recentMemory().joinToString("; ") }
+    val pastMemory = remember { com.rootapp.data.Memory.base(context) }
     val tone = remember { SettingsStore(context).personality }
     val vm: ReflectionViewModel = viewModel(
-        factory = ReflectionVMFactory(AppModule.llmClient, userName, pastMemory, tone, onUserMessage = { store.remember(it) }),
+        factory = ReflectionVMFactory(
+            AppModule.llmClient, userName, pastMemory, tone,
+            onUserMessage = { store.remember(it) },
+            retrieve = { com.rootapp.data.Memory.relevant(context, it) },
+        ),
     )
     val state by vm.state.collectAsStateWithLifecycle()
 

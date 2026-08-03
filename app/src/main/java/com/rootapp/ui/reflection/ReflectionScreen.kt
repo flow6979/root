@@ -73,10 +73,11 @@ class ReflectionVMFactory(
     private val tone: String,
     private val onUserMessage: (String) -> Unit,
     private val onTakeaway: (com.rootapp.data.Insights.Takeaway) -> Unit = {},
+    private val retrieve: (String) -> String = { "" },
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-        ReflectionViewModel(llm, userName, pastMemory, tone, onUserMessage, onTakeaway) as T
+        ReflectionViewModel(llm, userName, pastMemory, tone, onUserMessage, onTakeaway, retrieve) as T
 }
 
 @Composable
@@ -88,7 +89,7 @@ fun ReflectionScreen(
     val store = remember { LocalStore(context) }
     val supabase = remember { com.rootapp.data.SupabaseRepository(context) }
     val bgScope = rememberCoroutineScope()
-    val pastMemory = remember { store.recentMemory().joinToString("; ") }
+    val pastMemory = remember { com.rootapp.data.Memory.base(context) }
     val tone = remember { com.rootapp.data.SettingsStore(context).personality }
     var sessionLogged by remember { mutableStateOf(false) }
     var msgCount by remember { mutableIntStateOf(0) }
@@ -113,6 +114,7 @@ fun ReflectionScreen(
             },
             // Persist the distilled session takeaway so Home can nudge on it next time.
             onTakeaway = { store.addTakeaway(it.concern, it.intention, System.currentTimeMillis()) },
+            retrieve = { com.rootapp.data.Memory.relevant(context, it) },
         ),
     )
 
