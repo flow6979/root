@@ -36,6 +36,12 @@ val proxyBaseUrl: String = (localProps.getProperty("PROXY_BASE_URL")
 val proxyAppToken: String = (localProps.getProperty("PROXY_APP_TOKEN")
     ?: System.getenv("PROXY_APP_TOKEN") ?: "").trim()
 
+// Crash reporting + product analytics. These are CLIENT keys designed to ship (Sentry DSN,
+// PostHog project key), so they stay in every build; blank => that service stays off.
+val sentryDsn: String = (localProps.getProperty("SENTRY_DSN") ?: System.getenv("SENTRY_DSN") ?: "").trim()
+val posthogKey: String = (localProps.getProperty("POSTHOG_KEY") ?: System.getenv("POSTHOG_KEY") ?: "").trim()
+val posthogHost: String = (localProps.getProperty("POSTHOG_HOST") ?: System.getenv("POSTHOG_HOST") ?: "https://us.i.posthog.com").trim()
+
 val releaseStoreFile: String? = localProps.getProperty("RELEASE_STORE_FILE")
 
 android {
@@ -57,8 +63,8 @@ android {
         applicationId = "com.rootapp"
         minSdk = 26
         targetSdk = 34
-        versionCode = 37
-        versionName = "0.5.7"
+        versionCode = 38
+        versionName = "0.5.8"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "GROQ_API_KEY", "\"$groqKey\"")
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
@@ -66,6 +72,9 @@ android {
         buildConfigField("String", "ELEVENLABS_API_KEY", "\"$elevenKey\"")
         buildConfigField("String", "PROXY_BASE_URL", "\"$proxyBaseUrl\"")
         buildConfigField("String", "PROXY_APP_TOKEN", "\"$proxyAppToken\"")
+        buildConfigField("String", "SENTRY_DSN", "\"$sentryDsn\"")
+        buildConfigField("String", "POSTHOG_KEY", "\"$posthogKey\"")
+        buildConfigField("String", "POSTHOG_HOST", "\"$posthogHost\"")
     }
 
     buildTypes {
@@ -112,6 +121,7 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("io.sentry:sentry-android:7.14.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 
