@@ -1,6 +1,7 @@
 package com.rootapp.ui.moments
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,8 +25,25 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.Place
+import androidx.compose.material.icons.rounded.Restaurant
+import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import com.rootapp.ui.common.IconTile
+import com.rootapp.ui.common.ScoreRing
+import com.rootapp.ui.common.SectionLabel
+import com.rootapp.ui.common.StatChip
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -185,10 +203,14 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
             colors = CardDefaults.cardColors(containerColor = palette.accentSoft),
             modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
-                Text(
-                    if (nearest != null) "📍 You're near ${nearest!!.name}" else "📍 Eating spots nearby",
-                    fontSize = 14.sp, fontWeight = FontWeight.Bold, color = palette.accent,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Place, null, tint = palette.accent, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        if (nearest != null) "You're near ${nearest!!.name}" else "Eating spots nearby",
+                        fontSize = 14.sp, fontWeight = FontWeight.Bold, color = palette.accent,
+                    )
+                }
                 Spacer(Modifier.height(6.dp))
                 Text(
                     if (nearest != null) "Nearest: ${nearest!!.name}, ${nearest!!.distanceM}m away."
@@ -210,16 +232,18 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
                     Text(it, fontSize = 12.sp, color = palette.dim)
                 }
                 if (nearbyList.isNotEmpty()) {
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(12.dp))
                     nearbyList.forEach { p ->
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 3.dp)) {
-                            Text(if (p.isJunk) "🍔" else "🍽", fontSize = 14.sp)
-                            Text("  ${p.name} · ${p.distanceM}m", fontSize = 12.sp, color = palette.onSurface,
-                                modifier = Modifier.weight(1f))
-                            Text(
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 5.dp)) {
+                            IconTile(Icons.Rounded.Restaurant, size = 30.dp)
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(p.name, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = palette.onSurface)
+                                Text("${p.distanceM}m away", fontSize = 11.sp, color = palette.dim)
+                            }
+                            StatChip(
                                 if (p.isJunk) "avoid" else p.healthLabel,
-                                fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                                color = if (p.isJunk) Color(0xFFD0563F) else palette.accent,
+                                if (p.isJunk) Color(0xFFD0563F) else palette.accent,
                             )
                         }
                     }
@@ -244,16 +268,21 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
             modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    ScoreRing(eatingScore, "of 100", size = 92.dp, stroke = 10.dp)
+                    Spacer(Modifier.width(16.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("Eating score", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
+                        SectionLabel("Eating")
+                        Spacer(Modifier.height(6.dp))
                         Text(
-                            if (eatingScore == null) "Log meals to see your score"
-                            else "${com.rootapp.data.Scores.label(eatingScore)} · $healthyCount healthy, $junkCount junk",
+                            eatingScore?.let { com.rootapp.data.Scores.label(it) } ?: "Log a meal",
+                            fontSize = 18.sp, fontWeight = FontWeight.Bold, color = palette.onSurface,
+                        )
+                        Text(
+                            if (eatingScore == null) "to see your score"
+                            else "$healthyCount healthy, $junkCount junk",
                             fontSize = 12.sp, color = palette.dim,
                         )
                     }
-                    Text(eatingScore?.let { "$it" } ?: "—", fontSize = 30.sp,
-                        fontWeight = FontWeight.Bold, color = palette.accent)
                 }
                 if (eatingScore != null && recentReasons.isNotEmpty()) {
                     Spacer(Modifier.height(10.dp))
@@ -322,20 +351,25 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
             }
         }
         Spacer(Modifier.height(14.dp))
-        OutlinedButton(onClick = { showDialog = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("＋ Log what you ate")
+        OutlinedButton(onClick = { showDialog = true }, modifier = Modifier.fillMaxWidth().height(50.dp)) {
+            Icon(Icons.Rounded.Add, null, tint = palette.accent, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Log what you ate", color = palette.accent)
         }
         Spacer(Modifier.height(8.dp))
-        OutlinedButton(
-            onClick = { logByVoice() },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
+        OutlinedButton(onClick = { logByVoice() }, modifier = Modifier.fillMaxWidth().height(50.dp)) {
+            Icon(
+                if (foodRecording) Icons.Rounded.Stop else Icons.Rounded.Mic,
+                null, tint = palette.accent, modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(8.dp))
             Text(
                 when {
-                    foodSaving -> "Saving…"
-                    foodRecording -> "⏹ Stop & save"
-                    else -> "🎤 Log by voice"
+                    foodSaving -> "Saving..."
+                    foodRecording -> "Stop & save"
+                    else -> "Log by voice"
                 },
+                color = palette.accent,
             )
         }
         Spacer(Modifier.height(24.dp))
@@ -367,17 +401,20 @@ private fun dayLabel(ts: Long): String {
 @Composable
 private fun FoodRow(f: FoodEntry, onDelete: () -> Unit) {
     val palette = LocalRootPalette.current
+    val dot = if (f.healthy) palette.accent else Color(0xFFD0563F)
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(if (f.healthy) "🥗" else "🍔", fontSize = 20.sp)
-        Column(Modifier.padding(start = 12.dp).weight(1f)) {
+        Box(Modifier.size(9.dp).clip(CircleShape).background(dot))
+        Column(Modifier.padding(start = 14.dp).weight(1f)) {
             Text(f.label.ifBlank { "Meal" }, fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold, color = palette.onSurface)
             val time = java.time.Instant.ofEpochMilli(f.timestamp).atZone(java.time.ZoneId.systemDefault())
                 .toLocalTime().format(java.time.format.DateTimeFormatter.ofPattern("h:mm a"))
             Text("$time · ${if (f.healthy) "healthy" else "junk"}", fontSize = 12.sp, color = palette.dim)
         }
-        Text("✕", color = palette.dim, fontSize = 16.sp,
-            modifier = Modifier.clickable { onDelete() }.padding(8.dp))
+        Icon(
+            Icons.Rounded.Close, contentDescription = "Delete", tint = palette.dim,
+            modifier = Modifier.size(18.dp).clickable { onDelete() },
+        )
     }
 }
 

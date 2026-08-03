@@ -1,18 +1,23 @@
 package com.rootapp.ui.shield
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Insights
+import androidx.compose.material.icons.rounded.NightsStay
+import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.SmartDisplay
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -28,6 +33,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -40,13 +46,12 @@ import com.rootapp.shield.ShieldInsights
 import com.rootapp.shield.ShieldPermissions
 import com.rootapp.shield.UsageStatsReader
 import com.rootapp.shield.UsageWatcherService
+import com.rootapp.ui.common.GlassCard
+import com.rootapp.ui.common.IconTile
+import com.rootapp.ui.common.SectionLabel
 import com.rootapp.ui.theme.LocalRootPalette
 
-/**
- * Shield = the focus tab. One job: help the user see their screen time and gently break the
- * doomscroll. Kept deliberately simple - screen-time hero, one on/off protection, and the
- * apps to pause.
- */
+/** Shield = the focus tab: see screen time, one gentle pause, and the apps to pause. */
 @Composable
 fun ShieldScreen(modifier: Modifier = Modifier) {
     val palette = LocalRootPalette.current
@@ -64,8 +69,6 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
     val dailyAvg = UsageStatsReader.fmt(UsageStatsReader.dailyAverageMinutes(days))
     val aiRead = UsageStatsReader.read(days, topApps)
 
-    // Real, tied-to-the-problem insight: late-night use, week-over-week trend, the top time-sink,
-    // and an honest "you could get back ~X" framing. Degrades gracefully when access isn't granted.
     val heroLines = remember(permRefresh, hasUsage, days, topApps) {
         if (!hasUsage) emptyList() else {
             val top = topApps.firstOrNull()
@@ -92,46 +95,57 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
         modifier = modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 18.dp, vertical = 8.dp),
     ) {
-        Text("Shield", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
-        Text("Your focus, today", fontSize = 12.sp, color = palette.dim)
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(10.dp))
+        Text("Shield", fontSize = 26.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
+        Text("Your focus, today", fontSize = 13.sp, color = palette.dim)
+        Spacer(Modifier.height(18.dp))
 
         // ---- screen-time hero ----
-        GlassCard(palette.surface) {
-            Text("Screen time this week", fontSize = 12.sp, color = palette.dim)
-            Text(if (hasUsage) dailyAvg else "—", fontSize = 40.sp, fontWeight = FontWeight.Bold, color = palette.onSurface)
-            Text(if (hasUsage) "a day on average" else "Grant Usage access to see this",
-                fontSize = 12.sp, color = palette.dim)
-            Spacer(Modifier.height(14.dp))
+        GlassCard {
+            SectionLabel("Screen time this week")
+            Spacer(Modifier.height(6.dp))
+            Text(if (hasUsage) dailyAvg else "--", fontSize = 44.sp, fontWeight = FontWeight.Bold, color = palette.onSurface)
+            Text(if (hasUsage) "a day on average" else "Grant Usage access to see this", fontSize = 12.sp, color = palette.dim)
+            Spacer(Modifier.height(16.dp))
             WeeklyBars(days, palette.accent, palette.accentSoft)
             if (hasUsage) {
-                Spacer(Modifier.height(14.dp))
-                Text("🧠 $aiRead", fontSize = 13.sp, color = palette.onSurface)
-            }
-        }
-        Spacer(Modifier.height(16.dp))
-
-        // ---- hero insight (one or two lines tied to real problems) ----
-        if (heroLines.isNotEmpty()) {
-            GlassCard(palette.surface) {
-                heroLines.forEachIndexed { i, line ->
-                    if (i > 0) Spacer(Modifier.height(8.dp))
-                    Text(
-                        (if (i == 0) "✨ " else "→ ") + line,
-                        fontSize = 14.sp,
-                        fontWeight = if (i == 0) FontWeight.SemiBold else FontWeight.Normal,
-                        color = palette.onSurface,
-                    )
+                Spacer(Modifier.height(16.dp))
+                Row {
+                    Icon(Icons.Rounded.Insights, null, tint = palette.accent, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(aiRead, fontSize = 13.sp, color = palette.onSurface, modifier = Modifier.weight(1f))
                 }
             }
-            Spacer(Modifier.height(16.dp))
+        }
+        Spacer(Modifier.height(14.dp))
+
+        // ---- hero insight ----
+        if (heroLines.isNotEmpty()) {
+            GlassCard(padding = 16.dp) {
+                Row {
+                    IconTile(Icons.Rounded.NightsStay)
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        heroLines.forEachIndexed { i, line ->
+                            if (i > 0) Spacer(Modifier.height(6.dp))
+                            Text(
+                                line, fontSize = 13.sp,
+                                fontWeight = if (i == 0) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (i == 0) palette.onSurface else palette.dim,
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(18.dp))
         }
 
-        // ---- the gentle pause (core feature) ----
-        Section("THE GENTLE PAUSE")
-        GlassCard(palette.surface) {
+        // ---- the gentle pause ----
+        SectionLabel("The gentle pause")
+        Spacer(Modifier.height(8.dp))
+        GlassCard {
             if (!ready) {
                 Text("Let Root step in for a breath when you open a time-sink app. Two quick permissions:",
                     fontSize = 13.sp, color = palette.onSurface)
@@ -147,58 +161,45 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
                 }
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconTile(Icons.Rounded.Shield)
+                    Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
                         Text(if (running) "On" else "Off", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
-                        Text("A calm full-screen pause when you open a paused app.",
-                            fontSize = 12.sp, color = palette.dim)
+                        Text("A calm full-screen pause when you open a paused app.", fontSize = 12.sp, color = palette.dim)
                     }
                     Switch(checked = running, onCheckedChange = {
                         if (it) UsageWatcherService.start(context) else UsageWatcherService.stop(context)
                     })
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(14.dp))
                 OutlinedButton(
-                    onClick = {
-                        InterruptOverlay(context).showForApp(appLabel = "Instagram", strict = true, onPause = {}, onProceed = {})
-                    },
+                    onClick = { InterruptOverlay(context).showForApp(appLabel = "Instagram", strict = true, onPause = {}, onProceed = {}) },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("Preview the pause") }
             }
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(18.dp))
 
-        // ---- apps to pause (doomscroll / provoking content) ----
-        Section("APPS TO PAUSE")
-        GlassCard(palette.surface) {
+        // ---- apps to pause ----
+        SectionLabel("Apps to pause")
+        Spacer(Modifier.height(8.dp))
+        GlassCard {
             Text("The apps that pull you in the most.", fontSize = 12.sp, color = palette.dim)
-            Spacer(Modifier.height(12.dp))
-            AppToggle("Instagram", "Reels, endless feed", igOn) { igOn = it; monitored.toggle("com.instagram.android", it) }
             Spacer(Modifier.height(14.dp))
-            AppToggle("YouTube", "Shorts, autoplay", ytOn) { ytOn = it; monitored.toggle("com.google.android.youtube", it) }
+            AppToggle("Instagram", "Reels, endless feed", Icons.Rounded.PhotoCamera, igOn) { igOn = it; monitored.toggle("com.instagram.android", it) }
+            Spacer(Modifier.height(16.dp))
+            AppToggle("YouTube", "Shorts, autoplay", Icons.Rounded.SmartDisplay, ytOn) { ytOn = it; monitored.toggle("com.google.android.youtube", it) }
         }
         Spacer(Modifier.height(24.dp))
     }
 }
 
 @Composable
-private fun GlassCard(surface: Color, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = surface),
-        modifier = Modifier.fillMaxWidth(),
-    ) { Column(Modifier.padding(16.dp), content = content) }
-}
-
-@Composable
-private fun Section(t: String) {
-    Text(t, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = LocalRootPalette.current.dim)
-    Spacer(Modifier.height(8.dp))
-}
-
-@Composable
-private fun AppToggle(name: String, detail: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun AppToggle(name: String, detail: String, icon: ImageVector, checked: Boolean, onChange: (Boolean) -> Unit) {
     val palette = LocalRootPalette.current
     Row(verticalAlignment = Alignment.CenterVertically) {
+        IconTile(icon)
+        Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
             Text(detail, fontSize = 12.sp, color = palette.dim)
@@ -211,15 +212,16 @@ private fun AppToggle(name: String, detail: String, checked: Boolean, onChange: 
 private fun WeeklyBars(days: List<UsageStatsReader.DayUsage>, bar: Color, track: Color) {
     val values = if (days.isEmpty()) List(7) { 0 } else days.map { it.minutes }
     val max = (values.maxOrNull() ?: 0).coerceAtLeast(1)
-    Canvas(Modifier.fillMaxWidth().height(96.dp)) {
+    Canvas(Modifier.fillMaxWidth().height(90.dp)) {
         val n = values.size
         val gap = 10.dp.toPx()
         val w = (size.width - gap * (n - 1)) / n
+        val radius = CornerRadius(w / 2.4f, w / 2.4f)
         values.forEachIndexed { i, v ->
             val x = i * (w + gap)
-            val barH = size.height * (v.toFloat() / max)
-            drawRoundRect(color = track, topLeft = Offset(x, 0f), size = Size(w, size.height), cornerRadius = CornerRadius(6f, 6f))
-            if (barH > 0f) drawRoundRect(color = bar, topLeft = Offset(x, size.height - barH), size = Size(w, barH), cornerRadius = CornerRadius(6f, 6f))
+            val barH = (size.height * (v.toFloat() / max)).coerceAtLeast(w * 0.4f)
+            drawRoundRect(color = track, topLeft = Offset(x, 0f), size = Size(w, size.height), cornerRadius = radius)
+            drawRoundRect(color = bar, topLeft = Offset(x, size.height - barH), size = Size(w, barH), cornerRadius = radius)
         }
     }
 }

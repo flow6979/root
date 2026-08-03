@@ -15,6 +15,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Headphones
+import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -256,15 +262,18 @@ private fun ClassicsSection(premium: Boolean, tts: TextToSpeech) {
 
 @Composable
 private fun ListenPill(premium: Boolean, speaking: Boolean, onClick: () -> Unit) {
-    Box(
+    Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(100)).background(Color(0x33000000))
             .clickable(onClick = onClick).padding(12.dp),
-        contentAlignment = Alignment.Center,
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            when { !premium -> "🎧 Listen · Premium"; speaking -> "⏹ Stop"; else -> "🎧 Listen" },
-            color = AMBER, fontSize = 13.sp, fontWeight = FontWeight.Bold,
+        Icon(
+            if (speaking) Icons.Rounded.Stop else Icons.Rounded.Headphones,
+            contentDescription = null, tint = AMBER, modifier = Modifier.size(18.dp),
         )
+        Spacer(Modifier.width(8.dp))
+        Text(if (speaking) "Stop" else "Listen", color = AMBER, fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }
 }
 
