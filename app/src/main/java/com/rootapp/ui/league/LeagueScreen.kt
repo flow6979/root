@@ -34,7 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rootapp.data.Leaderboard
-import com.rootapp.data.LeaderRow
+import com.rootapp.data.LeagueMember
 import com.rootapp.data.LeaderStanding
 import com.rootapp.data.SupabaseRepository
 import com.rootapp.ui.common.GlassCard
@@ -62,7 +62,7 @@ fun LeagueScreen(modifier: Modifier = Modifier) {
     var draft by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
     var standing by remember { mutableStateOf<LeaderStanding?>(null) }
-    var board by remember { mutableStateOf<List<LeaderRow>>(emptyList()) }
+    var division by remember { mutableStateOf<List<LeagueMember>>(emptyList()) }
     var refreshing by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -71,7 +71,7 @@ fun LeagueScreen(modifier: Modifier = Modifier) {
             refreshing = true
             Leaderboard.syncScore(context)
             standing = repo.myStanding(week)
-            board = repo.leaderboard(week)
+            division = repo.myDivision(week)
             refreshing = false
         }
     }
@@ -133,7 +133,7 @@ fun LeagueScreen(modifier: Modifier = Modifier) {
             else -> {
                 StandingHero(standing, refreshing)
                 Spacer(Modifier.height(14.dp))
-                BoardCard(board, refreshing)
+                DivisionCard(division, refreshing)
                 Spacer(Modifier.height(14.dp))
                 androidx.compose.material3.OutlinedButton(
                     onClick = { reload() }, enabled = !refreshing, modifier = Modifier.fillMaxWidth(),
@@ -180,17 +180,36 @@ private fun StandingHero(standing: LeaderStanding?, refreshing: Boolean) {
     }
 }
 
+private val TIER_NAMES = listOf("Ember", "Dawn", "Sky", "Aurora", "Zenith")
+private fun tierName(t: Int): String = TIER_NAMES.getOrElse(t) { "Ember" }
+
+private val promoteGreen = androidx.compose.ui.graphics.Color(0xFF3E9C6B)
+private val relegateRed = androidx.compose.ui.graphics.Color(0xFFC0563F)
+
 @Composable
-private fun BoardCard(board: List<LeaderRow>, refreshing: Boolean) {
+private fun DivisionCard(division: List<LeagueMember>, refreshing: Boolean) {
     val palette = LocalRootPalette.current
+    val tier = division.firstOrNull()?.tier ?: 0
+    val size = division.firstOrNull()?.leagueSize ?: division.size
     GlassCard(Modifier.enterUp(40)) {
-        SectionLabel("Standings")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SectionLabel(tierName(tier) + " league")
+            Spacer(Modifier.weight(1f))
+            if (tier < 4) Text("Top 5 promote", fontSize = 11.sp, color = promoteGreen, fontWeight = FontWeight.SemiBold)
+        }
         Spacer(Modifier.height(10.dp))
-        if (board.isEmpty()) {
-            Text(if (refreshing) "Loading..." else "No scores yet this week. Be the first.",
+        if (division.isEmpty()) {
+            Text(if (refreshing) "Loading your league..." else "No one here yet. Earn a point to open your league.",
                 fontSize = 13.sp, color = palette.dim)
         } else {
-            board.forEachIndexed { i, row ->
+            division.forEachIndexed { i, row ->
+                val promote = tier < 4 && row.rank <= 5
+                val relegate = tier > 0 && size > 5 && row.rank > size - 5
+                // Zone dividers, Duolingo-style.
+                if (promote && (i == 0)) ZoneLabel("Promotion zone", promoteGreen)
+                if (relegate && (i == 0 || !isRelegate(division[i - 1], tier, size))) {
+                    Spacer(Modifier.height(6.dp)); ZoneLabel("Relegation zone", relegateRed)
+                }
                 if (i > 0) Spacer(Modifier.height(4.dp))
                 Row(
                     Modifier.fillMaxWidth()
@@ -199,10 +218,18 @@ private fun BoardCard(board: List<LeaderRow>, refreshing: Boolean) {
                         .padding(horizontal = 10.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    val badge = when {
+                        promote -> promoteGreen
+                        relegate -> relegateRed
+                        else -> palette.surface
+                    }
                     Box(
-                        Modifier.size(28.dp).clip(CircleShape).background(palette.surface),
+                        Modifier.size(28.dp).clip(CircleShape).background(badge),
                         contentAlignment = Alignment.Center,
-                    ) { Text("${row.rank}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = palette.onSurface) }
+                    ) {
+                        Text("${row.rank}", fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                            color = if (promote || relegate) androidx.compose.ui.graphics.Color.White else palette.onSurface)
+                    }
                     Spacer(Modifier.width(12.dp))
                     Text(
                         row.username, fontSize = 14.sp,
@@ -216,4 +243,13 @@ private fun BoardCard(board: List<LeaderRow>, refreshing: Boolean) {
             }
         }
     }
+}
+
+private fun isRelegate(row: LeagueMember, tier: Int, size: Int): Boolean =
+    tier > 0 && size > 5 && row.rank > size - 5
+
+@Composable
+private fun ZoneLabel(text: String, color: androidx.compose.ui.graphics.Color) {
+    Text(text.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = color,
+        modifier = Modifier.padding(vertical = 4.dp))
 }

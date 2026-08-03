@@ -30,6 +30,16 @@ data class LeaderStanding(
 /** One row on the weekly leaderboard. */
 data class LeaderRow(val username: String, val points: Int, val rank: Int, val isMe: Boolean)
 
+/** One member of my weekly division (Phase B), carrying the division's tier + size. */
+data class LeagueMember(
+    val username: String,
+    val points: Int,
+    val rank: Int,
+    val isMe: Boolean,
+    val tier: Int,
+    val leagueSize: Int,
+)
+
 /**
  * Lightweight Supabase client over OkHttp (no extra SDK). Handles anonymous auth
  * (persisted refresh token so the same anon user sticks) and RLS-scoped inserts.
@@ -143,6 +153,25 @@ class SupabaseRepository(context: Context) {
                     points = o["effort_points"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
                     rank = o["rnk"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
                     isMe = o["is_me"]?.jsonPrimitive?.content?.toBoolean() ?: false,
+                )
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    /** My weekly division's board (Phase B): members ranked, with tier + league size. */
+    suspend fun myDivision(week: String): List<LeagueMember> = withContext(Dispatchers.IO) {
+        val body = buildJsonObject { put("p_week", week) }
+        val text = rpc("get_my_division", body) ?: return@withContext emptyList()
+        runCatching {
+            json.parseToJsonElement(text).jsonArray.map { el ->
+                val o = el.jsonObject
+                LeagueMember(
+                    username = o["username"]?.jsonPrimitive?.content ?: "anon",
+                    points = o["effort_points"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                    rank = o["rnk"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                    isMe = o["is_me"]?.jsonPrimitive?.content?.toBoolean() ?: false,
+                    tier = o["tier"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+                    leagueSize = o["league_size"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
                 )
             }
         }.getOrDefault(emptyList())

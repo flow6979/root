@@ -63,8 +63,8 @@ android {
         applicationId = "com.rootapp"
         minSdk = 26
         targetSdk = 34
-        versionCode = 47
-        versionName = "0.7.0"
+        versionCode = 48
+        versionName = "0.7.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "GROQ_API_KEY", "\"$groqKey\"")
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
