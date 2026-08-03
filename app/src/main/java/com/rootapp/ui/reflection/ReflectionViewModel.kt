@@ -34,6 +34,12 @@ class ReflectionViewModel(
     /** The evolving user profile to seed the persona, and a callback to persist an updated one. */
     private val profile: String = "",
     private val onProfile: (String) -> Unit = {},
+    /**
+     * Executes an in-session coach action (start focus, set budget, log meal, set bedtime) and
+     * returns a short confirmation to show, or null if it couldn't act. Wired by the screen to
+     * [com.rootapp.shield.CoachActions]. Default no-op keeps the ViewModel usable in tests.
+     */
+    private val onAction: (com.rootapp.ai.CoachAction) -> String? = { null },
 ) : ViewModel() {
 
     data class UiState(
@@ -67,7 +73,14 @@ class ReflectionViewModel(
         viewModelScope.launch {
             try {
                 val reply = llm.complete(withRelevantMemory(text))
-                transcript += ChatMessage.assistant(reply)
+                // Extract any coach action, execute it, and fold its confirmation into the reply.
+                val parsed = com.rootapp.ai.ActionParser.parse(reply)
+                val confirmations = parsed.actions.mapNotNull { a ->
+                    runCatching { onAction(a) }.getOrNull()
+                }
+                val shown = if (confirmations.isEmpty()) parsed.text
+                else parsed.text + "\n\n" + confirmations.joinToString("\n") { "Done: $it" }
+                transcript += ChatMessage.assistant(shown)
                 _state.value = _state.value.copy(visible = visibleFrom(transcript), sending = false)
             } catch (t: Throwable) {
                 _state.value = _state.value.copy(

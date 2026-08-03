@@ -78,6 +78,7 @@ fun VoiceSessionScreen(userName: String, onExit: () -> Unit, onTypeInstead: () -
             retrieve = { com.rootapp.data.Memory.relevant(context, it) },
             profile = store.userProfile(),
             onProfile = { store.setUserProfile(it) },
+            onAction = { com.rootapp.shield.CoachActions.execute(context, it) },
         ),
     )
     val state by vm.state.collectAsStateWithLifecycle()

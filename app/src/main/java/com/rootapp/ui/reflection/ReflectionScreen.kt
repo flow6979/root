@@ -76,10 +76,13 @@ class ReflectionVMFactory(
     private val retrieve: suspend (String) -> String = { "" },
     private val profile: String = "",
     private val onProfile: (String) -> Unit = {},
+    private val onAction: (com.rootapp.ai.CoachAction) -> String? = { null },
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-        ReflectionViewModel(llm, userName, pastMemory, tone, onUserMessage, onTakeaway, retrieve, profile, onProfile) as T
+        ReflectionViewModel(
+            llm, userName, pastMemory, tone, onUserMessage, onTakeaway, retrieve, profile, onProfile, onAction,
+        ) as T
 }
 
 @Composable
@@ -119,6 +122,7 @@ fun ReflectionScreen(
             retrieve = { com.rootapp.data.Memory.relevant(context, it) },
             profile = store.userProfile(),
             onProfile = { store.setUserProfile(it) },
+            onAction = { com.rootapp.shield.CoachActions.execute(context, it) },
         ),
     )
 
