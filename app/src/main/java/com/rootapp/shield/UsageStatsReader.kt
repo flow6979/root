@@ -183,9 +183,39 @@ object UsageStatsReader {
         return (ms / 60000).toInt()
     }
 
-    private fun appLabel(pm: PackageManager, pkg: String): String = runCatching {
-        pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
-    }.getOrDefault(pkg.substringAfterLast('.').replaceFirstChar { it.uppercase() })
+    private val knownNames = mapOf(
+        "com.instagram.android" to "Instagram",
+        "com.google.android.youtube" to "YouTube",
+        "com.zhiliaoapp.musically" to "TikTok",
+        "com.ss.android.ugc.trill" to "TikTok",
+        "com.whatsapp" to "WhatsApp",
+        "com.snapchat.android" to "Snapchat",
+        "com.facebook.katana" to "Facebook",
+        "com.twitter.android" to "X",
+        "com.reddit.frontpage" to "Reddit",
+        "com.netflix.mediaclient" to "Netflix",
+        "com.google.android.gm" to "Gmail",
+        "com.android.chrome" to "Chrome",
+    )
+
+    /** Generic package segments that should never become an app name (fixes the ".android" bug). */
+    private val genericSegments = setOf("android", "app", "apps", "mobile", "com", "org", "net", "google", "free", "lite", "go")
+
+    private fun prettyFromPackage(pkg: String): String {
+        val parts = pkg.split('.').filter { it.isNotBlank() }
+        val candidate = parts.lastOrNull { it.lowercase() !in genericSegments } ?: parts.lastOrNull() ?: pkg
+        return candidate.replaceFirstChar { it.uppercase() }
+    }
+
+    private fun appLabel(pm: PackageManager, pkg: String): String =
+        knownNames[pkg]
+            ?: runCatching { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() }
+                .getOrNull()?.takeIf { it.isNotBlank() && !it.equals("android", ignoreCase = true) }
+            ?: prettyFromPackage(pkg)
+
+    /** Public resolver for callers outside this object (e.g. the watcher's nudge labels). */
+    fun labelOf(context: Context, pkg: String): String =
+        appLabel(context.packageManager, pkg)
 
     fun fmt(minutes: Int): String {
         val h = minutes / 60; val m = minutes % 60

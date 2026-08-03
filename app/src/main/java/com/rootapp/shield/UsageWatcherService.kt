@@ -93,7 +93,7 @@ class UsageWatcherService : Service() {
             if (current != null && current != lastForeground) {
                 lastForeground = current
                 if (current in monitoredSet && !overlay.isShowing) {
-                    val label = current.substringAfterLast('.').replaceFirstChar { it.uppercase() }
+                    val label = UsageStatsReader.labelOf(this, current)
                     LocalStore(this).incInterruptShown()
                     Track.event(Events.INTERRUPT_SHOWN)
                     val strict = SettingsStore(this).premium
@@ -149,9 +149,7 @@ class UsageWatcherService : Service() {
         }
     }
 
-    private fun labelFor(pkg: String): String = runCatching {
-        packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
-    }.getOrDefault(pkg.substringAfterLast('.').replaceFirstChar { it.uppercase() })
+    private fun labelFor(pkg: String): String = UsageStatsReader.labelOf(this, pkg)
 
     /** Once a minute, nudge at 80% and 100% of the daily screen-time budget (once each per day). */
     private fun maybeBudgetNudge(now: Long) {
