@@ -11,6 +11,7 @@ enum class SkyTheme(val key: String, val label: String, val unlockPoints: Int, v
     STARFIELD("starfield", "Starfield", 250, "Extra stars, day and night"),
     METEOR("meteor", "Meteor Shower", 450, "Streaking meteors"),
     AURORA("aurora", "Aurora", 700, "Shimmering northern lights"),
+    COSMOS("cosmos", "Cosmos", 900, "A galaxy of asteroids and planets"),
     ;
 
     companion object {

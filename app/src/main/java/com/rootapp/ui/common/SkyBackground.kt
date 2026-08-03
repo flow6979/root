@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -24,6 +25,7 @@ import com.rootapp.ui.theme.LocalRootPalette
 import java.util.Calendar
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.sin
 
 /**
@@ -112,6 +114,14 @@ fun SkyBackground(
                 }
             }
 
+            // Subtle deep-space extras on the night sky: a tiny ringed planet + drifting asteroids.
+            if (!isDay && palette.starsAlpha > 0f) {
+                val u = minOf(w, h)
+                drawRingedPlanet(w * 0.84f, h * 0.13f, u * 0.020f, Color(0xFFCBB68F), Color(0xFFE7DAB8), 0.30f)
+                drawAsteroid(wrap(0.20f + drift * 0.30f) * w, h * 0.55f, u * 0.015f, Color.White, 0.18f)
+                drawAsteroid(wrap(0.72f - drift * 0.22f) * w, h * 0.63f, u * 0.012f, Color.White, 0.14f)
+            }
+
             // ---- earned cosmetic sky themes (Phase C) ----
             when (theme) {
                 SkyTheme.GOLDEN_HOUR -> drawRect(
@@ -132,6 +142,32 @@ fun SkyBackground(
                 }
                 SkyTheme.METEOR -> drawMeteors(shoot, w, h)
                 SkyTheme.AURORA -> drawAurora(drift, w, h)
+                SkyTheme.COSMOS -> {
+                    val u = minOf(w, h)
+                    // deep-space wash so it reads as outer space at any time of day
+                    drawRect(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color(0xFF0B1030).copy(alpha = 0.60f),
+                                Color(0xFF1B0E33).copy(alpha = 0.40f),
+                                Color(0xFF06030F).copy(alpha = 0.30f),
+                            ),
+                        ),
+                    )
+                    drawNebula(w, h)
+                    // a dense, bright starfield
+                    bonusStars.forEach { (fx, fy, ph) ->
+                        val a = 0.4f + 0.6f * abs(sin(((twinkle + ph) * 2f * PI).toFloat()))
+                        drawCircle(Color.White.copy(alpha = (a * 0.9f).coerceIn(0f, 1f)), 0.6f + ph * 1.9f, Offset(fx * w, fy * h))
+                    }
+                    // a big ringed planet + drifting asteroids of different sizes
+                    drawRingedPlanet(w * 0.26f, h * 0.28f, u * 0.06f, Color(0xFFC9A26B), Color(0xFFEAD9B0), 0.92f)
+                    drawAsteroid(wrap(0.15f + drift * 0.40f) * w, h * 0.50f, u * 0.030f, Color(0xFF8A8FA3), 0.9f)
+                    drawAsteroid(wrap(0.60f + drift * 0.26f) * w, h * 0.66f, u * 0.022f, Color(0xFF9AA0B2), 0.85f)
+                    drawAsteroid(wrap(0.88f - drift * 0.30f) * w, h * 0.40f, u * 0.026f, Color(0xFF7E839A), 0.85f)
+                    // an occasional comet
+                    drawMeteors(shoot, w, h)
+                }
                 SkyTheme.DEFAULT -> {}
             }
         }
@@ -199,6 +235,56 @@ private fun DrawScope.drawAurora(drift: Float, w: Float, h: Float) {
             if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
         }
         drawPath(path, color.copy(alpha = 0.22f), style = Stroke(width = h * 0.045f, cap = StrokeCap.Round))
+    }
+}
+
+/** Keep a drifting fraction within a smooth 0..1 loop (with a little off-screen margin). */
+private fun wrap(x: Float): Float = ((x % 1.1f) + 1.1f) % 1.1f - 0.05f
+
+/** A small irregular asteroid with a couple of craters. */
+private fun DrawScope.drawAsteroid(cx: Float, cy: Float, r: Float, color: Color, alpha: Float) {
+    val path = Path()
+    val pts = 9
+    for (i in 0..pts) {
+        val ang = (i.toFloat() / pts) * 2f * PI.toFloat()
+        val rr = r * (0.72f + 0.30f * abs(sin((i * 41 + 7).toFloat())))
+        val x = cx + rr * cos(ang)
+        val y = cy + rr * sin(ang)
+        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+    }
+    path.close()
+    drawPath(path, color.copy(alpha = alpha))
+    drawCircle(color.copy(alpha = alpha * 0.45f), r * 0.20f, Offset(cx - r * 0.22f, cy - r * 0.10f))
+    drawCircle(color.copy(alpha = alpha * 0.45f), r * 0.13f, Offset(cx + r * 0.26f, cy + r * 0.22f))
+}
+
+/** A stylised ringed planet (Saturn-like): an ellipse ring with the body drawn over it. */
+private fun DrawScope.drawRingedPlanet(cx: Float, cy: Float, r: Float, body: Color, ring: Color, alpha: Float) {
+    val ringW = r * 2.7f
+    val ringH = r * 0.85f
+    drawOval(
+        color = ring.copy(alpha = alpha * 0.55f),
+        topLeft = Offset(cx - ringW / 2f, cy - ringH / 2f),
+        size = Size(ringW, ringH),
+        style = Stroke(width = r * 0.16f),
+    )
+    drawCircle(body.copy(alpha = alpha), r, Offset(cx, cy))
+    drawCircle(Color.White.copy(alpha = alpha * 0.18f), r * 0.55f, Offset(cx - r * 0.3f, cy - r * 0.3f))
+}
+
+/** Soft nebula clouds for the Cosmos theme. */
+private fun DrawScope.drawNebula(w: Float, h: Float) {
+    listOf(
+        Triple(0.30f, 0.32f, Color(0xFF7A4FB0)),
+        Triple(0.72f, 0.52f, Color(0xFF3F6BB0)),
+        Triple(0.5f, 0.8f, Color(0xFFB05587)),
+    ).forEach { (fx, fy, c) ->
+        val center = Offset(fx * w, fy * h)
+        val radius = w * 0.55f
+        drawCircle(
+            Brush.radialGradient(listOf(c.copy(alpha = 0.22f), Color.Transparent), center = center, radius = radius),
+            radius = radius, center = center,
+        )
     }
 }
 

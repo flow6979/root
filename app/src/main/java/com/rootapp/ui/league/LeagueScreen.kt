@@ -86,6 +86,7 @@ private val THEME_SWATCH = mapOf(
     "starfield" to Color(0xFF9BB4FF),
     "meteor" to Color(0xFFB7C6E6),
     "aurora" to Color(0xFF5CE1B6),
+    "cosmos" to Color(0xFF8A6BE0),
 )
 
 /**
