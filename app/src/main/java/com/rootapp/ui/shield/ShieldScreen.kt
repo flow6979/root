@@ -49,6 +49,7 @@ import com.rootapp.shield.UsageWatcherService
 import com.rootapp.ui.common.GlassCard
 import com.rootapp.ui.common.IconTile
 import com.rootapp.ui.common.SectionLabel
+import com.rootapp.ui.common.enterUp
 import com.rootapp.ui.theme.LocalRootPalette
 
 /** Shield = the focus tab: see screen time, one gentle pause, and the apps to pause. */
@@ -103,7 +104,7 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
         Spacer(Modifier.height(18.dp))
 
         // ---- screen-time hero ----
-        GlassCard {
+        GlassCard(Modifier.enterUp(0)) {
             SectionLabel("Screen time this week")
             Spacer(Modifier.height(6.dp))
             Text(if (hasUsage) dailyAvg else "--", fontSize = 44.sp, fontWeight = FontWeight.Bold, color = palette.onSurface)
@@ -123,7 +124,7 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
 
         // ---- hero insight ----
         if (heroLines.isNotEmpty()) {
-            GlassCard(padding = 16.dp) {
+            GlassCard(Modifier.enterUp(80), padding = 16.dp) {
                 Row {
                     IconTile(Icons.Rounded.NightsStay)
                     Spacer(Modifier.width(14.dp))
@@ -145,7 +146,7 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
         // ---- the gentle pause ----
         SectionLabel("The gentle pause")
         Spacer(Modifier.height(8.dp))
-        GlassCard {
+        GlassCard(Modifier.enterUp(140)) {
             if (!ready) {
                 Text("Let Root step in for a breath when you open a time-sink app. Two quick permissions:",
                     fontSize = 13.sp, color = palette.onSurface)
@@ -183,7 +184,7 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
         // ---- apps to pause ----
         SectionLabel("Apps to pause")
         Spacer(Modifier.height(8.dp))
-        GlassCard {
+        GlassCard(Modifier.enterUp(200)) {
             Text("The apps that pull you in the most.", fontSize = 12.sp, color = palette.dim)
             Spacer(Modifier.height(14.dp))
             AppToggle("Instagram", "Reels, endless feed", Icons.Rounded.PhotoCamera, igOn) { igOn = it; monitored.toggle("com.instagram.android", it) }

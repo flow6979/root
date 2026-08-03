@@ -1,5 +1,8 @@
 package com.rootapp.ui.common
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -13,13 +16,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -27,6 +35,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rootapp.ui.theme.LocalRootPalette
+import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 /** One consistent frosted card. The whole app uses this so spacing + shape never drift. */
 @Composable
@@ -72,19 +82,41 @@ fun ScoreRing(
     stroke: Dp = 12.dp,
 ) {
     val palette = LocalRootPalette.current
-    val pct = ((score ?: 0).coerceIn(0, 100)) / 100f
+    val target = ((score ?: 0).coerceIn(0, 100)) / 100f
+    // Ease the ring fill (and the number count-up) in from zero whenever the score changes.
+    val fill = remember(score) { Animatable(0f) }
+    LaunchedEffect(score) { fill.animateTo(target, tween(1000, easing = FastOutSlowInEasing)) }
     Box(modifier.size(size), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             val s = stroke.toPx()
             val arc = Size(this.size.width - s, this.size.height - s)
             val topLeft = Offset(s / 2, s / 2)
             drawArc(palette.accentSoft, 130f, 280f, false, topLeft, arc, style = Stroke(s, cap = StrokeCap.Round))
-            drawArc(palette.accent, 130f, 280f * pct, false, topLeft, arc, style = Stroke(s, cap = StrokeCap.Round))
+            drawArc(palette.accent, 130f, 280f * fill.value, false, topLeft, arc, style = Stroke(s, cap = StrokeCap.Round))
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(score?.toString() ?: "--", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = palette.accent)
+            Text(
+                if (score == null) "--" else "${(fill.value * 100).roundToInt()}",
+                fontSize = 34.sp, fontWeight = FontWeight.Bold, color = palette.accent,
+            )
             Text(label, fontSize = 11.sp, color = palette.dim)
         }
+    }
+}
+
+/**
+ * Gentle entrance: fades a composable in while easing it up a few dp. Pass a per-item [delayMs]
+ * to stagger a list of cards so a screen "settles" into place. Runs once on first composition.
+ */
+fun Modifier.enterUp(delayMs: Int = 0): Modifier = composed {
+    val p = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        if (delayMs > 0) delay(delayMs.toLong())
+        p.animateTo(1f, tween(durationMillis = 480, easing = FastOutSlowInEasing))
+    }
+    graphicsLayer {
+        alpha = p.value
+        translationY = (1f - p.value) * 28.dp.toPx()
     }
 }
 

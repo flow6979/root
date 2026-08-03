@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import com.rootapp.ui.theme.LocalRootPalette
 import java.util.Calendar
@@ -46,6 +47,10 @@ fun SkyBackground(hour: Int, minimalist: Boolean, modifier: Modifier = Modifier)
     val bob by transition.animateFloat(
         -1f, 1f, infiniteRepeatable(tween(5200), RepeatMode.Reverse), label = "bob",
     )
+    // A shooting star: streaks briefly near the start of each long cycle, then rests.
+    val shoot by transition.animateFloat(
+        0f, 1f, infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Restart), label = "shoot",
+    )
 
     // Deterministic star field (fixed positions so it doesn't jump on recomposition).
     val stars = remember {
@@ -66,6 +71,19 @@ fun SkyBackground(hour: Int, minimalist: Boolean, modifier: Modifier = Modifier)
                 stars.forEach { (fx, fy, ph) ->
                     val a = palette.starsAlpha * (0.35f + 0.65f * abs(sin(((twinkle + ph) * 2f * PI).toFloat())))
                     drawCircle(Color.White.copy(alpha = a.coerceIn(0f, 1f)), 0.7f + ph * 1.7f, Offset(fx * w, fy * h))
+                }
+                // shooting star (brief streak at the start of the cycle)
+                if (shoot < 0.11f) {
+                    val p = shoot / 0.11f
+                    val sx = w * (0.18f + 0.5f * p)
+                    val sy = h * (0.08f + 0.2f * p)
+                    val len = w * 0.13f
+                    val a = ((1f - p) * 0.85f * palette.starsAlpha).coerceIn(0f, 1f)
+                    drawLine(
+                        Color.White.copy(alpha = a),
+                        Offset(sx, sy), Offset(sx - len, sy - len * 0.45f),
+                        strokeWidth = 3f, cap = StrokeCap.Round,
+                    )
                 }
             }
             // Slow-drifting clouds by day.

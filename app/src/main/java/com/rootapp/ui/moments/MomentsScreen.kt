@@ -44,6 +44,7 @@ import com.rootapp.ui.common.IconTile
 import com.rootapp.ui.common.ScoreRing
 import com.rootapp.ui.common.SectionLabel
 import com.rootapp.ui.common.StatChip
+import com.rootapp.ui.common.enterUp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -201,7 +202,7 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
 
         Card(shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = palette.accentSoft),
-            modifier = Modifier.fillMaxWidth()) {
+            modifier = Modifier.fillMaxWidth().enterUp(0)) {
             Column(Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Rounded.Place, null, tint = palette.accent, modifier = Modifier.size(18.dp))
@@ -265,7 +266,7 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
         var loadingDetails by remember { mutableStateOf(false) }
         Card(shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = palette.surface),
-            modifier = Modifier.fillMaxWidth()) {
+            modifier = Modifier.fillMaxWidth().enterUp(70)) {
             Column(Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     ScoreRing(eatingScore, "of 100", size = 92.dp, stroke = 10.dp)
@@ -331,7 +332,7 @@ fun MomentsScreen(modifier: Modifier = Modifier) {
         Spacer(Modifier.height(8.dp))
         Card(shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = palette.surface),
-            modifier = Modifier.fillMaxWidth()) {
+            modifier = Modifier.fillMaxWidth().enterUp(140)) {
             Column(Modifier.padding(16.dp)) {
                 if (foods.isEmpty()) {
                     Text("Nothing logged yet. Everything you log is kept, so you can look back.",

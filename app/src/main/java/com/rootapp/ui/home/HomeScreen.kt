@@ -55,6 +55,7 @@ import com.rootapp.ui.common.GlassCard
 import com.rootapp.ui.common.IconTile
 import com.rootapp.ui.common.ScoreRing
 import com.rootapp.ui.common.SectionLabel
+import com.rootapp.ui.common.enterUp
 import com.rootapp.ui.theme.LocalRootPalette
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -133,7 +134,7 @@ fun HomeScreen(
 
         // ---- wellbeing hero (score ring) ----
         var showScoreInfo by remember { mutableStateOf(false) }
-        GlassCard(Modifier.clickable { showScoreInfo = true }) {
+        GlassCard(Modifier.enterUp(0).clickable { showScoreInfo = true }) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 ScoreRing(wellbeing, "of 100", size = 104.dp, stroke = 11.dp)
                 Spacer(Modifier.width(18.dp))
@@ -187,7 +188,7 @@ fun HomeScreen(
         }
 
         // ---- mood check-in ----
-        GlassCard {
+        GlassCard(Modifier.enterUp(70)) {
             Text(moodPrompt, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
             Text("A quick check-in. It shapes today's insights.", fontSize = 12.sp, color = palette.dim)
             Spacer(Modifier.height(14.dp))
@@ -222,8 +223,8 @@ fun HomeScreen(
         if (insights.isNotEmpty()) {
             SectionLabel("For you")
             Spacer(Modifier.height(10.dp))
-            insights.forEach { card ->
-                InsightCardView(card)
+            insights.forEachIndexed { i, card ->
+                InsightCardView(card, delayMs = 140 + i * 70)
                 Spacer(Modifier.height(10.dp))
             }
             Spacer(Modifier.height(6.dp))
@@ -280,9 +281,9 @@ private fun MoodSelector(selected: Int?, onSelect: (Int) -> Unit) {
 
 /** A "For you" insight: line-icon tile, title, observation, and a gentle suggestion. */
 @Composable
-private fun InsightCardView(card: com.rootapp.data.Insights.InsightCard) {
+private fun InsightCardView(card: com.rootapp.data.Insights.InsightCard, delayMs: Int = 0) {
     val palette = LocalRootPalette.current
-    GlassCard(padding = 16.dp) {
+    GlassCard(Modifier.enterUp(delayMs), padding = 16.dp) {
         Row {
             IconTile(iconForInsight(card))
             Spacer(Modifier.width(14.dp))
