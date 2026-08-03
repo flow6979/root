@@ -29,6 +29,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,6 +85,9 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
     var userName by remember { mutableStateOf(settings.userName) }
     // Zen mode: hide all UI so only the animated sky is visible.
     var zen by remember { mutableStateOf(false) }
+    // Selected cosmetic sky theme (updates live when changed on the League screen).
+    LaunchedEffect(Unit) { com.rootapp.data.SkyThemeState.init(context) }
+    val skyTheme by com.rootapp.data.SkyThemeState.selected.collectAsState()
 
     RootTheme(timeOfDay = timeOfDay, minimalist = minimalist) {
         if (!onboarded) {
@@ -101,7 +106,7 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
             routeName == "memory" || routeName == "league"
 
         Box(Modifier.fillMaxSize()) {
-        SkyBackground(hour = currentHour, minimalist = minimalist, modifier = Modifier.matchParentSize())
+        SkyBackground(hour = currentHour, minimalist = minimalist, modifier = Modifier.matchParentSize(), theme = skyTheme)
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {

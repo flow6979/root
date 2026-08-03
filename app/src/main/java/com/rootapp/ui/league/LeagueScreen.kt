@@ -14,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -140,6 +141,11 @@ fun LeagueScreen(modifier: Modifier = Modifier) {
                 ) { Text(if (refreshing) "Refreshing..." else "Refresh", color = palette.accent) }
             }
         }
+        // Season + cosmetic sky themes are fully local, so they show regardless of backend state.
+        if (!loadingUser) {
+            Spacer(Modifier.height(14.dp))
+            SeasonCard(context)
+        }
         Spacer(Modifier.height(24.dp))
     }
 }
@@ -247,6 +253,59 @@ private fun DivisionCard(division: List<LeagueMember>, refreshing: Boolean) {
 
 private fun isRelegate(row: LeagueMember, tier: Int, size: Int): Boolean =
     tier > 0 && size > 5 && row.rank > size - 5
+
+/** Season progress + the cosmetic sky-theme picker (unlock by earning points across the season). */
+@Composable
+private fun SeasonCard(context: android.content.Context) {
+    val palette = LocalRootPalette.current
+    val season = remember { com.rootapp.data.SeasonStore(context) }
+    // Re-read on each selection so the ticks/highlight update.
+    var selected by remember { mutableStateOf(season.selectedTheme()) }
+    val points = remember { season.points() }
+    val daysLeft = remember { season.daysLeft() }
+
+    GlassCard(Modifier.enterUp(60)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SectionLabel("Season ${season.seasonNumber()}")
+            Spacer(Modifier.weight(1f))
+            Text("$daysLeft days left", fontSize = 11.sp, color = palette.dim)
+        }
+        Spacer(Modifier.height(8.dp))
+        Text("$points season points", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = palette.onSurface)
+        Text("Earn points to unlock skins for your sky. They're yours to keep.", fontSize = 12.sp, color = palette.dim)
+        Spacer(Modifier.height(14.dp))
+        com.rootapp.data.SkyTheme.all().forEach { theme ->
+            val unlocked = season.isUnlocked(theme)
+            val isSel = selected.key == theme.key
+            Row(
+                Modifier.fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (isSel) palette.accentSoft else androidx.compose.ui.graphics.Color.Transparent)
+                    .let { m -> if (unlocked) m.clickable { selected = theme; com.rootapp.data.SkyThemeState.set(context, theme) } else m }
+                    .padding(horizontal = 10.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        theme.label, fontSize = 14.sp,
+                        fontWeight = if (isSel) FontWeight.Bold else FontWeight.SemiBold,
+                        color = if (unlocked) palette.onSurface else palette.dim,
+                    )
+                    Text(
+                        if (unlocked) theme.blurb else "${theme.blurb} - unlock at ${theme.unlockPoints} pts",
+                        fontSize = 12.sp, color = palette.dim,
+                    )
+                }
+                when {
+                    isSel -> Text("Active", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = palette.accent)
+                    unlocked -> Text("Use", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = palette.accent)
+                    else -> Text("Locked", fontSize = 12.sp, color = palette.dim)
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+        }
+    }
+}
 
 @Composable
 private fun ZoneLabel(text: String, color: androidx.compose.ui.graphics.Color) {

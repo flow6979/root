@@ -21,10 +21,13 @@ object Leaderboard {
     private fun weekStartEpochDay(): Long = weekStartDate().toEpochDay()
     fun weekStartString(): String = weekStartDate().toString()
 
-    /** Award [action] and, if any points landed, push the updated weekly total. */
+    /** Award [action] and, if any points landed, add to season progress and push the weekly total. */
     fun record(context: Context, scope: CoroutineScope, action: EPAction) {
         val awarded = LeaderboardStore(context).record(action, LocalDate.now().toEpochDay())
-        if (awarded > 0) scope.launch { syncScore(context) }
+        if (awarded > 0) {
+            SeasonStore(context).addPoints(awarded) // unlock cosmetic sky themes over the season
+            scope.launch { syncScore(context) }
+        }
     }
 
     /** Push this week's EP total + current wellbeing score to the backend. */

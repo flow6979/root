@@ -15,8 +15,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import com.rootapp.data.SkyTheme
 import com.rootapp.ui.theme.LocalRootPalette
 import java.util.Calendar
 import kotlin.math.PI
@@ -31,7 +34,12 @@ import kotlin.math.sin
  * faint disc so the black-and-white theme stays clean.
  */
 @Composable
-fun SkyBackground(hour: Int, minimalist: Boolean, modifier: Modifier = Modifier) {
+fun SkyBackground(
+    hour: Int,
+    minimalist: Boolean,
+    modifier: Modifier = Modifier,
+    theme: SkyTheme = SkyTheme.DEFAULT,
+) {
     val palette = LocalRootPalette.current
     val minute = remember(hour) { Calendar.getInstance().get(Calendar.MINUTE) }
     val minutesOfDay = (((hour % 24) + 24) % 24) * 60 + minute
@@ -57,6 +65,12 @@ fun SkyBackground(hour: Int, minimalist: Boolean, modifier: Modifier = Modifier)
         var seed = 20260802
         fun rnd(): Float { seed = (seed * 1103515245 + 12345) and 0x7fffffff; return (seed % 1000) / 1000f }
         List(70) { Triple(rnd(), rnd() * 0.78f, rnd()) } // x-fraction, y-fraction (most of the sky), phase
+    }
+    // A denser field used only by the Starfield cosmetic (visible even by day).
+    val bonusStars = remember {
+        var seed = 991733
+        fun rnd(): Float { seed = (seed * 1103515245 + 12345) and 0x7fffffff; return (seed % 1000) / 1000f }
+        List(90) { Triple(rnd(), rnd() * 0.82f, rnd()) }
     }
 
     Canvas(modifier.fillMaxSize()) {
@@ -96,6 +110,29 @@ fun SkyBackground(hour: Int, minimalist: Boolean, modifier: Modifier = Modifier)
                     val x = (((baseX + drift * speed) % 1.35f) - 0.2f) * w
                     drawCloud(x, fy * h, (0.10f + speed * 0.05f) * w, Color.White.copy(alpha = 0.16f))
                 }
+            }
+
+            // ---- earned cosmetic sky themes (Phase C) ----
+            when (theme) {
+                SkyTheme.GOLDEN_HOUR -> drawRect(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color(0xFFFFC46B).copy(alpha = 0.24f),
+                            Color(0xFFFF8A5B).copy(alpha = 0.08f),
+                            Color.Transparent,
+                        ),
+                    ),
+                )
+                SkyTheme.STARFIELD -> {
+                    val floorA = maxOf(palette.starsAlpha, 0.12f)
+                    bonusStars.forEach { (fx, fy, ph) ->
+                        val a = floorA * (0.3f + 0.7f * abs(sin(((twinkle + ph) * 2f * PI).toFloat())))
+                        drawCircle(Color.White.copy(alpha = a.coerceIn(0f, 1f)), 0.6f + ph * 1.5f, Offset(fx * w, fy * h))
+                    }
+                }
+                SkyTheme.METEOR -> drawMeteors(shoot, w, h)
+                SkyTheme.AURORA -> drawAurora(drift, w, h)
+                SkyTheme.DEFAULT -> {}
             }
         }
 
@@ -143,4 +180,43 @@ private fun DrawScope.drawCloud(x: Float, y: Float, s: Float, color: Color) {
     drawCircle(color, s * 0.66f, Offset(x + s * 0.5f, y + s * 0.08f))
     drawCircle(color, s * 0.50f, Offset(x + s * 1.0f, y))
     drawCircle(color, s * 0.42f, Offset(x + s * 0.5f, y - s * 0.18f))
+}
+
+/** Aurora cosmetic: two soft, wavy ribbons of light drifting across the upper sky. */
+private fun DrawScope.drawAurora(drift: Float, w: Float, h: Float) {
+    val bands = listOf(
+        Triple(0.20f, Color(0xFF5CE1B6), 0.0f),
+        Triple(0.29f, Color(0xFF8A7CFF), 0.6f),
+    )
+    val steps = 26
+    bands.forEach { (baseY, color, phase) ->
+        val path = Path()
+        val y0 = baseY * h
+        val amp = h * 0.03f
+        for (i in 0..steps) {
+            val x = w * i / steps
+            val y = y0 + amp * sin((i / steps.toFloat() * 3f + drift * 2f + phase) * PI.toFloat())
+            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        drawPath(path, color.copy(alpha = 0.22f), style = Stroke(width = h * 0.045f, cap = StrokeCap.Round))
+    }
+}
+
+/** Meteor-shower cosmetic: several staggered streaks so the sky is never still. */
+private fun DrawScope.drawMeteors(shoot: Float, w: Float, h: Float) {
+    listOf(0f, 0.33f, 0.66f).forEachIndexed { idx, off ->
+        val ph = (shoot + off) % 1f
+        if (ph < 0.25f) {
+            val p = ph / 0.25f
+            val sx = w * (0.1f + 0.7f * p) + idx * w * 0.05f
+            val sy = h * (0.05f + 0.25f * p) + idx * h * 0.08f
+            val len = w * 0.16f
+            val a = ((1f - p) * 0.9f).coerceIn(0f, 1f)
+            drawLine(
+                Color.White.copy(alpha = a),
+                Offset(sx, sy), Offset(sx - len, sy - len * 0.5f),
+                strokeWidth = 3.5f, cap = StrokeCap.Round,
+            )
+        }
+    }
 }
