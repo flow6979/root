@@ -42,4 +42,5 @@ object Events {
     const val STORIES_FINISHED = "stories_finished_for_day"
     const val FOOD_LOGGED = "food_logged"
     const val PROTECTION_ENABLED = "protection_enabled"
+    const val NUDGE_SHOWN = "overuse_nudge_shown"
 }

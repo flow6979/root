@@ -21,6 +21,8 @@ import com.rootapp.analytics.Events
 import com.rootapp.analytics.Track
 import com.rootapp.data.LocalStore
 import com.rootapp.data.SettingsStore
+import com.rootapp.di.AppModule
+import java.util.Calendar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -46,6 +48,12 @@ class UsageWatcherService : Service() {
     private lateinit var overlay: InterruptOverlay
     private var lastForeground: String? = null
 
+    // Sustained-use tracking for the "gentle nudge" notification.
+    private var nudgeApp: String? = null
+    private var nudgeSessionStart = 0L
+    private var lastNudgeAt = 0L
+    private var nextNudgeMin = FIRST_NUDGE_MIN
+
     override fun onCreate() {
         super.onCreate()
         usm = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
@@ -68,11 +76,11 @@ class UsageWatcherService : Service() {
         while (scope.isActive) {
             val now = System.currentTimeMillis()
             val current = currentForegroundPackage(now)
+            val monitoredSet = monitored.get()
             // Transition-based: fire every time the user switches INTO a monitored app,
             // so re-opening YouTube later always re-triggers (fixes the "only first time" bug).
             if (current != null && current != lastForeground) {
                 lastForeground = current
-                val monitoredSet = monitored.get()
                 if (current in monitoredSet && !overlay.isShowing) {
                     val label = current.substringAfterLast('.').replaceFirstChar { it.uppercase() }
                     LocalStore(this).incInterruptShown()
@@ -92,9 +100,45 @@ class UsageWatcherService : Service() {
                     }
                 }
             }
+            handleSustainedUse(current, monitoredSet, now)
+
             delay(POLL_MS)
         }
     }
+
+    /** Fire a gentle nudge when a monitored app is used for a long continuous stretch. */
+    private fun handleSustainedUse(current: String?, monitoredSet: Set<String>, now: Long) {
+        if (current == null || current !in monitoredSet) { nudgeApp = null; return }
+        if (nudgeApp != current) {
+            nudgeApp = current
+            nudgeSessionStart = now
+            nextNudgeMin = FIRST_NUDGE_MIN
+            return
+        }
+        val sessionMin = ((now - nudgeSessionStart) / 60000L).toInt()
+        if (sessionMin < nextNudgeMin) return
+        if (now - lastNudgeAt < NUDGE_COOLDOWN_MS) return
+        if (!SettingsStore(this).overuseNudges || !Nudges.canPost(this)) return
+        lastNudgeAt = now
+        nextNudgeMin = sessionMin + REPEAT_NUDGE_MIN
+        fireNudge(current, sessionMin)
+    }
+
+    private fun fireNudge(pkg: String, sessionMin: Int) {
+        scope.launch {
+            val label = labelFor(pkg)
+            val todayMin = UsageStatsReader.todayForegroundMinutes(this@UsageWatcherService, pkg)
+            val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+            val nudge = NudgeCalculator.compute(label, sessionMin, todayMin, hour)
+            val ai = NudgeContent.aiLine(AppModule.llmClient, label, sessionMin, hour)
+            Nudges.post(this@UsageWatcherService, nudge.title, nudge.body(ai))
+            Track.event(Events.NUDGE_SHOWN)
+        }
+    }
+
+    private fun labelFor(pkg: String): String = runCatching {
+        packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
+    }.getOrDefault(pkg.substringAfterLast('.').replaceFirstChar { it.uppercase() })
 
     private fun currentForegroundPackage(now: Long): String? {
         val events = usm.queryEvents(now - LOOKBACK_MS, now)
@@ -163,6 +207,9 @@ class UsageWatcherService : Service() {
         private const val NOTIF_ID = 42
         private const val POLL_MS = 800L
         private const val LOOKBACK_MS = 6_000L
+        private const val FIRST_NUDGE_MIN = 15
+        private const val REPEAT_NUDGE_MIN = 20
+        private const val NUDGE_COOLDOWN_MS = 10 * 60 * 1000L
         const val ACTION_STOP = "com.rootapp.shield.STOP"
 
         private val _running = MutableStateFlow(false)

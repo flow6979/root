@@ -33,11 +33,17 @@ class SettingsStore(context: Context) {
         get() = prefs.getString(USER_NAME, "Vaibhav") ?: "Vaibhav"
         set(v) = prefs.edit().putString(USER_NAME, v).apply()
 
+    /** Fire a gentle notification when a monitored app is used for a long stretch. Default on. */
+    var overuseNudges: Boolean
+        get() = prefs.getBoolean(OVERUSE_NUDGES, true)
+        set(v) = prefs.edit().putBoolean(OVERUSE_NUDGES, v).apply()
+
     companion object {
         private const val MINIMALIST = "minimalist"
         private const val PERSONALITY = "personality"
         private const val ONBOARDED = "onboarded"
         private const val USER_NAME = "user_name"
         private const val GEMINI_KEY = "gemini_api_key"
+        private const val OVERUSE_NUDGES = "overuse_nudges"
     }
 }

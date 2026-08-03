@@ -1,5 +1,8 @@
 package com.rootapp.ui.shield
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.NightsStay
+import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.SmartDisplay
@@ -26,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,8 +45,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.rootapp.data.SettingsStore
+import com.rootapp.di.AppModule
 import com.rootapp.shield.InterruptOverlay
 import com.rootapp.shield.MonitoredApps
+import com.rootapp.shield.NudgeCalculator
+import com.rootapp.shield.NudgeContent
+import com.rootapp.shield.Nudges
 import com.rootapp.shield.ShieldInsights
 import com.rootapp.shield.ShieldPermissions
 import com.rootapp.shield.UsageStatsReader
@@ -50,6 +60,7 @@ import com.rootapp.ui.common.GlassCard
 import com.rootapp.ui.common.IconTile
 import com.rootapp.ui.common.SectionLabel
 import com.rootapp.ui.common.enterUp
+import kotlinx.coroutines.launch
 import com.rootapp.ui.theme.LocalRootPalette
 
 /** Shield = the focus tab: see screen time, one gentle pause, and the apps to pause. */
@@ -91,6 +102,24 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
     val monitored = remember { MonitoredApps(context) }
     var igOn by remember { mutableStateOf(monitored.isMonitored("com.instagram.android")) }
     var ytOn by remember { mutableStateOf(monitored.isMonitored("com.google.android.youtube")) }
+
+    // Overuse-nudge state.
+    val settings = remember { SettingsStore(context) }
+    val scope = rememberCoroutineScope()
+    var nudges by remember { mutableStateOf(settings.overuseNudges) }
+    var notifGranted by remember(permRefresh) { mutableStateOf(Nudges.canPost(context)) }
+    val needsNotif = android.os.Build.VERSION.SDK_INT >= 33 && !notifGranted
+    val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        notifGranted = Nudges.canPost(context)
+    }
+    fun previewNudge() {
+        scope.launch {
+            val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+            val n = NudgeCalculator.compute("Instagram", sessionMin = 22, todayMin = 65, hour = hour)
+            val ai = NudgeContent.aiLine(AppModule.llmClient, "Instagram", 22, hour)
+            Nudges.post(context, n.title, n.body(ai))
+        }
+    }
 
     Column(
         modifier = modifier
@@ -178,6 +207,37 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("Preview the pause") }
             }
+        }
+        Spacer(Modifier.height(18.dp))
+
+        // ---- overuse nudges ----
+        SectionLabel("Overuse nudges")
+        Spacer(Modifier.height(8.dp))
+        GlassCard(Modifier.enterUp(170)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconTile(Icons.Rounded.NotificationsActive)
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Nudge me when I overuse", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
+                    Text("A kind heads-up with a real projection after a long stretch.", fontSize = 12.sp, color = palette.dim)
+                }
+                Switch(checked = nudges, onCheckedChange = {
+                    nudges = it; settings.overuseNudges = it
+                    if (it && needsNotif) notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                })
+            }
+            if (nudges && needsNotif) {
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = { notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Turn on notifications") }
+            }
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(
+                onClick = { if (needsNotif) notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) else previewNudge() },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Preview a nudge") }
         }
         Spacer(Modifier.height(18.dp))
 

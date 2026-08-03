@@ -133,6 +133,14 @@ object UsageStatsReader {
             .map { AppUsage(appLabel(pm, it.packageName), (it.totalTimeInForeground / 60000).toInt()) }
     }
 
+    /** Foreground minutes for a single package since local midnight today. */
+    fun todayForegroundMinutes(context: Context, pkg: String): Int {
+        val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val ms = usm.queryAndAggregateUsageStats(todayStartMillis(), System.currentTimeMillis())[pkg]
+            ?.totalTimeInForeground ?: 0L
+        return (ms / 60000).toInt()
+    }
+
     private fun appLabel(pm: PackageManager, pkg: String): String = runCatching {
         pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
     }.getOrDefault(pkg.substringAfterLast('.').replaceFirstChar { it.uppercase() })
