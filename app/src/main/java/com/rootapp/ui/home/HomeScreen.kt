@@ -202,6 +202,20 @@ fun HomeScreen(
                 },
             )
         }
+        Spacer(Modifier.height(14.dp))
+
+        // ---- talk to Root (quick voice) ----
+        OutlinedButton(onClick = onTalk, modifier = Modifier.fillMaxWidth().height(50.dp)) {
+            Icon(Icons.Rounded.Mic, contentDescription = null, tint = palette.accent, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Talk to Root", fontSize = 15.sp, color = palette.accent)
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = "5 min - just talk, I'll listen",
+            fontSize = 12.sp, color = palette.dim,
+            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+        )
         Spacer(Modifier.height(18.dp))
 
         // ---- "For you" insight cards ----
@@ -234,18 +248,6 @@ fun HomeScreen(
         Button(onClick = onStartReflection, modifier = Modifier.fillMaxWidth().height(52.dp)) {
             Text("Start a reflection session", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         }
-        Spacer(Modifier.height(10.dp))
-        OutlinedButton(onClick = onTalk, modifier = Modifier.fillMaxWidth().height(50.dp)) {
-            Icon(Icons.Rounded.Mic, contentDescription = null, tint = palette.accent, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-            Text("Talk to Root", fontSize = 15.sp, color = palette.accent)
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = "5 min - just talk, I'll listen",
-            fontSize = 12.sp, color = palette.dim,
-            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
-        )
         Spacer(Modifier.height(24.dp))
     }
 }
