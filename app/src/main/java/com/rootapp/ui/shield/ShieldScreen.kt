@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.NightsStay
 import androidx.compose.material.icons.rounded.NotificationsActive
@@ -56,6 +57,7 @@ import com.rootapp.shield.ShieldInsights
 import com.rootapp.shield.ShieldPermissions
 import com.rootapp.shield.UsageStatsReader
 import com.rootapp.shield.UsageWatcherService
+import com.rootapp.shield.WindDown
 import com.rootapp.ui.common.GlassCard
 import com.rootapp.ui.common.IconTile
 import com.rootapp.ui.common.SectionLabel
@@ -109,6 +111,8 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
     var nudges by remember { mutableStateOf(settings.overuseNudges) }
     var notifGranted by remember(permRefresh) { mutableStateOf(Nudges.canPost(context)) }
     val needsNotif = android.os.Build.VERSION.SDK_INT >= 33 && !notifGranted
+    var windDown by remember { mutableStateOf(settings.windDownEnabled) }
+    var bedtime by remember { mutableIntStateOf(settings.bedtimeHour.let { if (it < 12) it + 24 else it }.coerceIn(20, 25)) }
     val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         notifGranted = Nudges.canPost(context)
     }
@@ -238,6 +242,43 @@ fun ShieldScreen(modifier: Modifier = Modifier) {
                 onClick = { if (needsNotif) notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) else previewNudge() },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Preview a nudge") }
+        }
+        Spacer(Modifier.height(18.dp))
+
+        // ---- wind-down ----
+        SectionLabel("Wind-down")
+        Spacer(Modifier.height(8.dp))
+        GlassCard(Modifier.enterUp(185)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconTile(Icons.Rounded.Bedtime)
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Wind-down reminder", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
+                    Text("A nudge 15 min before bedtime to set the phone down.", fontSize = 12.sp, color = palette.dim)
+                }
+                Switch(checked = windDown, onCheckedChange = {
+                    windDown = it; settings.windDownEnabled = it
+                    if (it && needsNotif) notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    WindDown.apply(context)
+                })
+            }
+            if (windDown) {
+                Spacer(Modifier.height(14.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Bedtime", fontSize = 14.sp, color = palette.onSurface, modifier = Modifier.weight(1f))
+                    OutlinedButton(onClick = {
+                        bedtime = (bedtime - 1).coerceAtLeast(20); settings.bedtimeHour = bedtime; WindDown.apply(context)
+                    }) { Text("-") }
+                    Text(
+                        WindDown.bedtimeLabel(bedtime % 24),
+                        fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = palette.accent,
+                        modifier = Modifier.padding(horizontal = 14.dp),
+                    )
+                    OutlinedButton(onClick = {
+                        bedtime = (bedtime + 1).coerceAtMost(25); settings.bedtimeHour = bedtime; WindDown.apply(context)
+                    }) { Text("+") }
+                }
+            }
         }
         Spacer(Modifier.height(18.dp))
 

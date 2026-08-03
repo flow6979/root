@@ -114,6 +114,39 @@ object UsageStatsReader {
         return total
     }
 
+    // ---- sleep (from the overnight usage gap) ----
+
+    /** Night window ending at 11am [daysAgo] days back, starting 15h earlier (~8pm the day before). */
+    private fun sleepWindow(daysAgo: Int): Pair<Long, Long> {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 11); cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+        cal.add(Calendar.DAY_OF_YEAR, -daysAgo)
+        val end = cal.timeInMillis
+        return (end - 15L * 60 * 60 * 1000) to end
+    }
+
+    fun lastNightSleep(context: Context): SleepEstimator.Night? {
+        val ivs = foregroundIntervals(context)
+        val (s, e) = sleepWindow(0)
+        return SleepEstimator.estimate(ivs, s, e)
+    }
+
+    /** Estimated sleep for each of the last 7 nights (oldest first); null nights = not enough signal. */
+    fun weeklyNights(context: Context): List<SleepEstimator.Night?> {
+        val ivs = foregroundIntervals(context)
+        return (6 downTo 0).map { d -> val (s, e) = sleepWindow(d); SleepEstimator.estimate(ivs, s, e) }
+    }
+
+    /** 0-100 bedtime-consistency from the last week's estimated sleep-start times. */
+    fun bedtimeConsistency(context: Context): Int? {
+        val bedtimes = weeklyNights(context).filterNotNull().map {
+            val c = Calendar.getInstance(); c.timeInMillis = it.startMs
+            c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE)
+        }
+        return SleepEstimator.consistency(bedtimes)
+    }
+
     private val ignoredHints = listOf(
         "launcher", "systemui", "com.android.settings", "inputmethod",
         "com.google.android.gms", "permissioncontroller", "com.android.vending",

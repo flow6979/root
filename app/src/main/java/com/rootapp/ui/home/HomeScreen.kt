@@ -86,13 +86,16 @@ fun HomeScreen(
             else -> "Winding down. How do you feel?"
         }
     }
+    val hasUsage = remember { com.rootapp.shield.ShieldPermissions.hasUsageAccess(context) }
     val screenDailyAvgMin = remember {
-        if (com.rootapp.shield.ShieldPermissions.hasUsageAccess(context)) {
+        if (hasUsage) {
             com.rootapp.shield.UsageStatsReader.dailyAverageMinutes(
                 com.rootapp.shield.UsageStatsReader.lastSevenDays(context),
             )
         } else null
     }
+    val lastSleep = remember { if (hasUsage) com.rootapp.shield.UsageStatsReader.lastNightSleep(context) else null }
+    val sleepConsistency = remember { if (hasUsage) com.rootapp.shield.UsageStatsReader.bedtimeConsistency(context) else null }
     val wellbeingResult = run {
         selectedMood
         com.rootapp.data.WellbeingScore.compute(
@@ -183,6 +186,30 @@ fun HomeScreen(
                     }
                 },
             )
+        }
+
+        // ---- sleep (estimated from the overnight usage gap) ----
+        if (lastSleep != null) {
+            GlassCard(Modifier.enterUp(35)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconTile(Icons.Rounded.Bedtime)
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        SectionLabel("Last night")
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "${com.rootapp.shield.SleepEstimator.fmt(lastSleep.minutes)} of sleep",
+                            fontSize = 18.sp, fontWeight = FontWeight.Bold, color = palette.onSurface,
+                        )
+                        Text(
+                            "Phone down around ${sleepClock(lastSleep.startMs)}" +
+                                (sleepConsistency?.let { " - bedtime consistency $it" } ?: ""),
+                            fontSize = 12.sp, color = palette.dim,
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
         }
 
         // ---- mood check-in ----
@@ -294,6 +321,10 @@ private fun InsightCardView(card: com.rootapp.data.Insights.InsightCard, delayMs
         }
     }
 }
+
+private fun sleepClock(ms: Long): String =
+    java.time.Instant.ofEpochMilli(ms).atZone(java.time.ZoneId.systemDefault())
+        .toLocalTime().format(java.time.format.DateTimeFormatter.ofPattern("h:mm a"))
 
 private fun iconForInsight(card: com.rootapp.data.Insights.InsightCard): ImageVector {
     val t = (card.title + " " + card.body).lowercase()

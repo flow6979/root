@@ -38,6 +38,14 @@ class SettingsStore(context: Context) {
         get() = prefs.getBoolean(OVERUSE_NUDGES, true)
         set(v) = prefs.edit().putBoolean(OVERUSE_NUDGES, v).apply()
 
+    /** Nightly wind-down reminder. Opt-in. bedtimeHour is 24h (default 23 = 11pm). */
+    var windDownEnabled: Boolean
+        get() = prefs.getBoolean(WIND_DOWN, false)
+        set(v) = prefs.edit().putBoolean(WIND_DOWN, v).apply()
+    var bedtimeHour: Int
+        get() = prefs.getInt(BEDTIME_HOUR, 23)
+        set(v) = prefs.edit().putInt(BEDTIME_HOUR, v.coerceIn(19, 26) % 24).apply()
+
     companion object {
         private const val MINIMALIST = "minimalist"
         private const val PERSONALITY = "personality"
@@ -45,5 +53,7 @@ class SettingsStore(context: Context) {
         private const val USER_NAME = "user_name"
         private const val GEMINI_KEY = "gemini_api_key"
         private const val OVERUSE_NUDGES = "overuse_nudges"
+        private const val WIND_DOWN = "wind_down_enabled"
+        private const val BEDTIME_HOUR = "bedtime_hour"
     }
 }

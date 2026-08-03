@@ -53,5 +53,9 @@
         <receiver
             android:name=".location.GeofenceReceiver"
             android:exported="false" />
+
+        <receiver
+            android:name=".shield.WindDownReceiver"
+            android:exported="false" />
     </application>
 </manifest>
