@@ -26,6 +26,7 @@ import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DirectionsWalk
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.PhoneIphone
 import androidx.compose.material.icons.rounded.Restaurant
@@ -102,8 +103,29 @@ fun HomeScreen(
             )
         } else null
     }
-    val lastSleep = remember { if (hasUsage) com.rootapp.shield.UsageStatsReader.lastNightSleep(context) else null }
+    val estimatedSleep = remember { if (hasUsage) com.rootapp.shield.UsageStatsReader.lastNightSleep(context) else null }
     val sleepConsistency = remember { if (hasUsage) com.rootapp.shield.UsageStatsReader.bedtimeConsistency(context) else null }
+
+    // Real body signals from Health Connect, preferred over Root's estimators when granted.
+    val hcAvailable = remember { com.rootapp.shield.HealthConnect.available(context) }
+    var hcGranted by remember { mutableStateOf(false) }
+    var hcSteps by remember { mutableStateOf<Int?>(null) }
+    var hcSleep by remember { mutableStateOf<com.rootapp.shield.SleepEstimator.Night?>(null) }
+    val hcLauncher = rememberLauncherForActivityResult(
+        com.rootapp.shield.HealthConnect.permissionContract(),
+    ) { granted -> hcGranted = granted.containsAll(com.rootapp.shield.HealthConnect.PERMISSIONS) }
+    LaunchedEffect(hcAvailable, hcGranted) {
+        if (hcAvailable) {
+            hcGranted = com.rootapp.shield.HealthConnect.hasAll(context)
+            if (hcGranted) {
+                hcSteps = com.rootapp.shield.HealthConnect.todaySteps(context)
+                hcSleep = com.rootapp.shield.HealthConnect.lastNightSleep(context)
+            }
+        }
+    }
+    // What we actually show: real data if we have it, else the estimate.
+    val lastSleep = hcSleep ?: estimatedSleep
+    val sleepFromHealth = hcSleep != null
     // Steps (on-device step counter).
     val stepsAvailable = remember { com.rootapp.shield.StepCounter.available(context) }
     var stepPerm by remember { mutableStateOf(com.rootapp.shield.StepCounter.hasPermission(context)) }
@@ -208,7 +230,27 @@ fun HomeScreen(
             )
         }
 
-        // ---- sleep (estimated from the overnight usage gap) ----
+        // ---- connect Health Connect (only when installed but not yet granted) ----
+        if (hcAvailable && !hcGranted) {
+            GlassCard(Modifier.enterUp(30)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconTile(Icons.Rounded.Favorite)
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        SectionLabel("Health Connect")
+                        Spacer(Modifier.height(6.dp))
+                        Text("Use your real sleep and steps", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
+                        Text("Grounds Root's picture of you in real data, not estimates.", fontSize = 12.sp, color = palette.dim)
+                    }
+                    OutlinedButton(onClick = { hcLauncher.launch(com.rootapp.shield.HealthConnect.PERMISSIONS) }) {
+                        Text("Connect", color = palette.accent)
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+        }
+
+        // ---- sleep (Health Connect if granted, else estimated from the overnight usage gap) ----
         if (lastSleep != null) {
             GlassCard(Modifier.enterUp(35)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -222,8 +264,12 @@ fun HomeScreen(
                             fontSize = 18.sp, fontWeight = FontWeight.Bold, color = palette.onSurface,
                         )
                         Text(
-                            "Phone down around ${sleepClock(lastSleep.startMs)}" +
-                                (sleepConsistency?.let { " - bedtime consistency $it" } ?: ""),
+                            if (sleepFromHealth) {
+                                "From Health Connect - asleep around ${sleepClock(lastSleep.startMs)}"
+                            } else {
+                                "Phone down around ${sleepClock(lastSleep.startMs)}" +
+                                    (sleepConsistency?.let { " - bedtime consistency $it" } ?: "")
+                            },
                             fontSize = 12.sp, color = palette.dim,
                         )
                     }
@@ -232,8 +278,10 @@ fun HomeScreen(
             Spacer(Modifier.height(14.dp))
         }
 
-        // ---- steps (on-device sensor) ----
-        if (stepsAvailable) {
+        // ---- steps (Health Connect if granted, else the on-device sensor) ----
+        val shownSteps = hcSteps ?: (if (stepPerm) steps else null)
+        val stepsFromHealth = hcSteps != null
+        if (stepsAvailable || (hcAvailable && hcGranted)) {
             GlassCard(Modifier.enterUp(52)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconTile(Icons.Rounded.DirectionsWalk)
@@ -242,17 +290,21 @@ fun HomeScreen(
                         SectionLabel("Move")
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            if (stepPerm) "${steps ?: "--"} steps" else "Count your steps",
+                            if (stepPerm || stepsFromHealth) "${shownSteps ?: "--"} steps" else "Count your steps",
                             fontSize = 18.sp, fontWeight = FontWeight.Bold, color = palette.onSurface,
                         )
                         Text(
-                            if (stepPerm) "goal $stepGoal" else "On-device only. Tap to enable.",
+                            when {
+                                stepsFromHealth -> "From Health Connect - goal $stepGoal"
+                                stepPerm -> "goal $stepGoal"
+                                else -> "On-device only. Tap to enable."
+                            },
                             fontSize = 12.sp, color = palette.dim,
                         )
                     }
-                    if (stepPerm && steps != null) {
-                        ScoreRing((steps!! * 100 / stepGoal).coerceIn(0, 100), "of goal", size = 78.dp, stroke = 9.dp)
-                    } else if (!stepPerm) {
+                    if (shownSteps != null) {
+                        ScoreRing((shownSteps * 100 / stepGoal).coerceIn(0, 100), "of goal", size = 78.dp, stroke = 9.dp)
+                    } else if (!stepPerm && !stepsFromHealth) {
                         OutlinedButton(onClick = { stepPermLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION) }) {
                             Text("Enable", color = palette.accent)
                         }

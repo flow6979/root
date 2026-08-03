@@ -21,6 +21,9 @@
     <uses-feature android:name="android.hardware.sensor.stepcounter" android:required="false" />
     <!-- Restart protection + wind-down after a reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Health Connect: read real steps + sleep (optional; degrades to Root's own estimators). -->
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
     <queries>
         <intent>
             <action android:name="android.speech.RecognitionService" />
@@ -30,6 +33,8 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
+        <!-- Discover the Health Connect provider. -->
+        <package android:name="com.google.android.apps.healthdata" />
     </queries>
 
     <application
@@ -53,7 +58,23 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Health Connect shows this when the user reviews why Root wants health data. -->
+            <intent-filter>
+                <action android:name="androidx.health.connect.action.SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
         </activity>
+
+        <!-- Android 14+ privacy-policy entry point for Health Connect permissions. -->
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
 
         <service
             android:name=".shield.UsageWatcherService"
