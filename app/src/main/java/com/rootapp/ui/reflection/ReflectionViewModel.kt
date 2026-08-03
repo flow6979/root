@@ -30,7 +30,7 @@ class ReflectionViewModel(
      */
     private val onTakeaway: (Insights.Takeaway) -> Unit = {},
     /** Returns memory relevant to a given user message, injected just before the model turn (RAG). */
-    private val retrieve: (String) -> String = { "" },
+    private val retrieve: suspend (String) -> String = { "" },
     /** The evolving user profile to seed the persona, and a callback to persist an updated one. */
     private val profile: String = "",
     private val onProfile: (String) -> Unit = {},
@@ -79,7 +79,7 @@ class ReflectionViewModel(
     }
 
     /** Transcript to send, with memory relevant to [latestUserText] injected before that turn. */
-    private fun withRelevantMemory(latestUserText: String): List<ChatMessage> {
+    private suspend fun withRelevantMemory(latestUserText: String): List<ChatMessage> {
         val mem = runCatching { retrieve(latestUserText) }.getOrDefault("")
         val list = transcript.toList()
         if (mem.isBlank()) return list

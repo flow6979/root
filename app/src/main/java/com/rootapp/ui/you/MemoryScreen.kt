@@ -48,6 +48,7 @@ fun MemoryScreen(modifier: Modifier = Modifier) {
     val takeaways = remember(refresh) { store.takeaways().reversed() }
     var confirmClear by remember { mutableStateOf(false) }
     val dateFmt = remember { SimpleDateFormat("d MMM", Locale.getDefault()) }
+    val semantic = remember { com.rootapp.data.SettingsStore(context).geminiApiKey.isNotBlank() }
 
     Column(
         modifier.fillMaxWidth().verticalScroll(rememberScrollState())
@@ -55,6 +56,15 @@ fun MemoryScreen(modifier: Modifier = Modifier) {
     ) {
         Text("What Root remembers", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = palette.onSurface)
         Text("Everything here stays on your phone. You are in control.", fontSize = 12.sp, color = palette.dim)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            if (semantic) {
+                "Recall: semantic. Root finds memories by meaning, using your Gemini key."
+            } else {
+                "Recall: keyword. Add a Gemini key in You > AI for smarter, meaning-based recall."
+            },
+            fontSize = 12.sp, color = palette.accent,
+        )
         Spacer(Modifier.height(16.dp))
 
         Section("PROFILE")

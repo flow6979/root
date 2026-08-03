@@ -73,7 +73,7 @@ class ReflectionVMFactory(
     private val tone: String,
     private val onUserMessage: (String) -> Unit,
     private val onTakeaway: (com.rootapp.data.Insights.Takeaway) -> Unit = {},
-    private val retrieve: (String) -> String = { "" },
+    private val retrieve: suspend (String) -> String = { "" },
     private val profile: String = "",
     private val onProfile: (String) -> Unit = {},
 ) : ViewModelProvider.Factory {
