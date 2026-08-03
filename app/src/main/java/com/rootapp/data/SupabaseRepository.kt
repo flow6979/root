@@ -106,8 +106,12 @@ class SupabaseRepository(context: Context) {
             put("password", password)
             if (name.isNotBlank()) put("data", buildJsonObject { put("full_name", name.trim()) })
         }
+        // Ask Supabase to land the email-confirmation link on a real page (not the project's
+        // default Site URL, which is localhost:3000 out of the box). This URL must also be listed
+        // under Supabase Auth -> URL Configuration -> Redirect URLs for it to take effect.
+        val redirect = java.net.URLEncoder.encode(EMAIL_REDIRECT, "UTF-8")
         val req = Request.Builder()
-            .url("$baseUrl/auth/v1/signup")
+            .url("$baseUrl/auth/v1/signup?redirect_to=$redirect")
             .addHeader("apikey", anonKey)
             .post(json.encodeToString(JsonObject.serializer(), body).toRequestBody(jsonMedia))
             .build()
@@ -131,10 +135,20 @@ class SupabaseRepository(context: Context) {
         e.putString(ACCESS, t.access); e.putString(REFRESH, t.refresh)
         e.putString(USER_ID, t.userId); e.putString(KIND, kind)
         if (t.email.isNullOrBlank()) e.remove(EMAIL) else e.putString(EMAIL, t.email)
+        if (t.name.isNullOrBlank()) e.remove(NAME) else e.putString(NAME, t.name)
         e.apply()
     }
 
-    private data class Tokens(val access: String, val refresh: String, val userId: String, val email: String? = null)
+    /** Display name from the signed-in account's metadata, if any. */
+    val displayName: String? get() = prefs.getString(NAME, null)?.ifBlank { null }
+
+    private data class Tokens(
+        val access: String,
+        val refresh: String,
+        val userId: String,
+        val email: String? = null,
+        val name: String? = null,
+    )
 
     private fun signInAnonymously(): Tokens? {
         val req = Request.Builder()
@@ -171,7 +185,9 @@ class SupabaseRepository(context: Context) {
                     val user = obj["user"]?.jsonObject
                     val uid = user?.get("id")?.jsonPrimitive?.content ?: ""
                     val em = user?.get("email")?.jsonPrimitive?.content
-                    AuthCall.Ok(Tokens(access, refresh, uid, em?.ifBlank { null }))
+                    val meta = user?.get("user_metadata")?.jsonObject
+                    val nm = (meta?.get("full_name") ?: meta?.get("name"))?.jsonPrimitive?.content
+                    AuthCall.Ok(Tokens(access, refresh, uid, em?.ifBlank { null }, nm?.ifBlank { null }))
                 } else {
                     AuthCall.Fail("Check your email to confirm your account.", needsConfirmation = true)
                 }
@@ -191,6 +207,9 @@ class SupabaseRepository(context: Context) {
         private const val REFRESH = "refresh_token"
         private const val USER_ID = "user_id"
         private const val EMAIL = "email"
+        private const val NAME = "display_name"
         private const val KIND = "kind"
+        /** Where the email-confirmation link lands after verifying (must be allow-listed in Supabase). */
+        private const val EMAIL_REDIRECT = "https://github.com/flow6979/root"
     }
 }

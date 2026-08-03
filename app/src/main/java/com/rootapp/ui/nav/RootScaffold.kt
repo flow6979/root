@@ -3,9 +3,11 @@ package com.rootapp.ui.nav
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
@@ -14,6 +16,8 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.outlined.Contrast
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,9 +33,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -72,7 +80,9 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
     var personality by remember { mutableStateOf(settings.personality) }
     var onboarded by remember { mutableStateOf(settings.onboarded) }
     var authed by remember { mutableStateOf(repo.loggedIn) }
-    val userName = remember { settings.userName }
+    var userName by remember { mutableStateOf(settings.userName) }
+    // Zen mode: hide all UI so only the animated sky is visible.
+    var zen by remember { mutableStateOf(false) }
 
     RootTheme(timeOfDay = timeOfDay, minimalist = minimalist) {
         if (!onboarded) {
@@ -80,7 +90,7 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
             return@RootTheme
         }
         if (!authed) {
-            com.rootapp.ui.auth.AuthScreen(onAuthed = { authed = true })
+            com.rootapp.ui.auth.AuthScreen(onAuthed = { userName = settings.userName; authed = true })
             return@RootTheme
         }
         val navController = rememberNavController()
@@ -94,7 +104,7 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
-                TopAppBar(
+                if (!zen) TopAppBar(
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.Transparent,
                         scrolledContainerColor = Color.Transparent,
@@ -108,6 +118,9 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
                         }
                     },
                     actions = {
+                        IconButton(onClick = { zen = true }) {
+                            Icon(Icons.Rounded.VisibilityOff, contentDescription = "Hide UI, show the sky")
+                        }
                         IconButton(onClick = { minimalist = !minimalist; settings.minimalist = minimalist }) {
                             Icon(Icons.Outlined.Contrast, contentDescription = "Toggle minimalist mode")
                         }
@@ -115,7 +128,7 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
                 )
             },
             bottomBar = {
-                NavigationBar(containerColor = LocalRootPalette.current.surface) {
+                if (!zen) NavigationBar(containerColor = LocalRootPalette.current.surface) {
                     Tab.entries.forEach { tab ->
                         val selected = currentRoute?.hierarchy?.any { it.route == tab.route } == true
                         NavigationBarItem(
@@ -137,7 +150,9 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
             Box(
                 Modifier
                     .fillMaxSize()
-                    .padding(inner),
+                    .padding(inner)
+                    // In zen mode, fade the whole UI out so only the sky shows.
+                    .alpha(if (zen) 0f else 1f),
             ) {
                 NavHost(
                     navController = navController,
@@ -182,6 +197,22 @@ fun RootScaffold(currentHour: Int = Calendar.getInstance().get(Calendar.HOUR_OF_
                         )
                     }
                     composable("memory") { com.rootapp.ui.you.MemoryScreen() }
+                }
+            }
+        }
+
+        // Zen overlay: swallow taps to the hidden UI and offer a single button to bring it back.
+        if (zen) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .pointerInput(Unit) { detectTapGestures { } },
+            ) {
+                IconButton(
+                    onClick = { zen = false },
+                    modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(8.dp),
+                ) {
+                    Icon(Icons.Rounded.Visibility, contentDescription = "Show the UI again")
                 }
             }
         }

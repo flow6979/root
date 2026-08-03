@@ -154,7 +154,10 @@ fun AuthScreen(onAuthed: () -> Unit) {
                         loading = false
                         when (r) {
                             is SupabaseRepository.AuthResult.Success -> {
-                                if (isSignUp && name.isNotBlank()) settings.userName = name.trim()
+                                // Always set the greeting name to THIS account: the typed name on
+                                // sign-up, else the name from the account's metadata on sign-in.
+                                val resolved = if (isSignUp && name.isNotBlank()) name.trim() else repo.displayName
+                                if (!resolved.isNullOrBlank()) settings.userName = resolved
                                 onAuthed()
                             }
                             is SupabaseRepository.AuthResult.NeedsConfirmation -> sentTo = email.trim()
